@@ -43,4 +43,17 @@
         vestibulum. Fusce dictum libero quis erat maximus, vitae volutpat diam dignissim.
     </string>
     <string name="title_activity_recognition">ActivityRecognition</string>
+    <string name="object_classification">Object Classification</string>
+    <string name="human_activity_recognition">Human Activity Recognition</string>
+    <string name="assignment_1">Assignment #1</string>
+    <string name="mobile_and_ubiquitous_computing_spring_2024">Mobile and Ubiquitous Computing [Spring 2024]</string>
+    <string name="capture_amp_inference"><![CDATA[Capture & Inference]]></string>
+    <string name="start">START</string>
+    <string name="end">END</string>
+    <string name="accelerometer_xyz">Accelerometer XYZ</string>
+    <string name="confident_0">Confident: 0</string>
+    <string name="no_result_available">No Result Available</string>
+    <string name="your_current_activity_is">Your current activity is</string>
+    <string name="capture">Capture</string>
+    <string name="this_object_is">This object is</string>
 </resources>

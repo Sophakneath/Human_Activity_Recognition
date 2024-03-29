@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".ObjectClassification"
+    android:background="@color/white"
+    android:id="@+id/main">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.appbar.AppBarLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <androidx.appcompat.widget.Toolbar
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/toolbar"
+                android:background="@color/secondary"
+                android:minHeight="?attr/actionBarSize"
+                android:theme="@style/AppTheme">
+
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/close"
+                    android:padding="10dp"
+                    android:id="@+id/close"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/human_activity_recognition"
+                    android:textSize="20sp"
+                    android:gravity="center_vertical"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="30dp"
+                    android:textStyle="bold" />
+
+            </androidx.appcompat.widget.Toolbar>
+
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginVertical="20dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/capture_amp_inference"
+                android:layout_marginEnd="20dp"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_corner"
+                android:paddingLeft="20dp"
+                android:paddingRight="20dp"
+                android:text="@string/capture"
+                android:id="@+id/capture" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:id="@+id/imageResult" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/this_object_is"
+            android:gravity="center_horizontal"
+            android:textSize="16sp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/no_result_available"
+            android:gravity="center_horizontal"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/secondary"
+            android:id="@+id/result" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/confident_0"
+            android:gravity="center_horizontal"
+            android:textSize="16sp"
+            android:id="@+id/confident" />
+
+        <androidx.camera.view.PreviewView
+            android:layout_height="250dp"
+            android:layout_width="match_parent"
+            android:id="@+id/preview" />
+
+    </LinearLayout>
+
+</ScrollView>

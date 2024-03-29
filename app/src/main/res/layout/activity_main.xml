@@ -12,8 +12,8 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Mobile and Ubiquitious Computing [Spring 2024]"
-        android:textSize="28dp"
+        android:text="@string/mobile_and_ubiquitous_computing_spring_2024"
+        android:textSize="28sp"
         android:textStyle="bold"
         android:layout_marginTop="20dp"
         android:layout_marginLeft="20dp"
@@ -23,10 +23,10 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Assignment #1"
-        android:textSize="18dp"
+        android:text="@string/assignment_1"
+        android:textSize="18sp"
         android:textColor="@color/secondary"
-        android:layout_marginLeft="20dp"/>
+        android:layout_marginStart="20dp"/>
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
@@ -43,8 +43,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingTop="50px"
-            android:paddingBottom="50px">
+            android:paddingTop="30dp"
+            android:paddingBottom="30dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -75,10 +75,10 @@
             <Button
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Human Activity Recognition"
+                android:text="@string/human_activity_recognition"
                 android:layout_gravity="bottom|center_horizontal"
-                android:layout_marginRight="100px"
-                android:layout_marginLeft="100px"
+                android:layout_marginRight="40dp"
+                android:layout_marginLeft="40dp"
                 android:id="@+id/actRecButton"
                 android:background="@drawable/rounded_corner" />
         </LinearLayout>
@@ -99,8 +99,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingTop="50px"
-            android:paddingBottom="50px">
+            android:paddingTop="30dp"
+            android:paddingBottom="30dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -135,10 +135,10 @@
             <Button
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Object Classification"
+                android:text="@string/object_classification"
                 android:layout_gravity="bottom|center_horizontal"
-                android:layout_marginRight="100px"
-                android:layout_marginLeft="100px"
+                android:layout_marginRight="40dp"
+                android:layout_marginLeft="40dp"
                 android:id="@+id/objClaButton"
                 android:background="@drawable/rounded_corner" />
         </LinearLayout>
