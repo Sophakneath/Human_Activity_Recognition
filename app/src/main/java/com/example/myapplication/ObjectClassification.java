@@ -3,7 +3,6 @@ package com.example.myapplication;
 import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
 import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
 
-import android.Manifest;
 import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
@@ -19,13 +18,11 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
@@ -41,7 +38,6 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.LifecycleOwner;
 
-import com.github.mikephil.charting.charts.LineChart;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.text.SimpleDateFormat;
@@ -193,14 +189,14 @@ public class ObjectClassification extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_act_recognition);
+        setContentView(R.layout.activity_obj_classification);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        ImageView close = (ImageView)findViewById(R.id.close);
+        ImageView close = (ImageView)findViewById(R.id.closePreview);
         close.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {

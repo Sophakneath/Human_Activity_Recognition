@@ -29,7 +29,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent myIntent = new Intent(MainActivity.this, ActivityRecognition.class);
-//                myIntent.putExtra("key", value); //Optional parameters
                 MainActivity.this.startActivity(myIntent);
             }
         });
@@ -39,7 +38,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent myIntent = new Intent(MainActivity.this, ObjectClassification.class);
-//                myIntent.putExtra("key", value); //Optional parameters
                 MainActivity.this.startActivity(myIntent);
             }
         });

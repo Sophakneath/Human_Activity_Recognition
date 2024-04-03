@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
@@ -11,7 +12,9 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        tools:ignore="MissingConstraints"
+        android:id="@+id/mainView">
 
         <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
@@ -30,12 +33,12 @@
                     android:layout_height="40dp"
                     android:src="@drawable/close"
                     android:padding="10dp"
-                    android:id="@+id/close" />
+                    android:id="@+id/closePreview" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/object_classification"
+                    android:text="@string/human_activity_recognition"
                     android:textSize="20sp"
                     android:gravity="center_vertical"
                     android:textColor="@color/white"
@@ -58,7 +61,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/capture_amp_inference"
-                android:layout_marginEnd="20dp"
+                android:layout_marginEnd="10dp"
                 android:textStyle="bold"
                 android:textSize="16sp" />
 
@@ -67,8 +70,8 @@
                 android:layout_height="wrap_content"
                 android:text="@string/start"
                 android:background="@drawable/rounded_corner"
-                android:paddingLeft="20dp"
-                android:paddingRight="20dp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
                 android:layout_marginEnd="10dp"
                 android:id="@+id/start" />
 
@@ -76,8 +79,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/rounded_corner"
-                android:paddingLeft="20dp"
-                android:paddingRight="20dp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
                 android:text="@string/end"
                 android:id="@+id/end" />
         </LinearLayout>
@@ -127,4 +130,43 @@
             android:textSize="16sp"/>
     </LinearLayout>
 
-</ScrollView>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/secondView"
+        android:visibility="gone">
+
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:layout_editor_absoluteX="0dp"
+            tools:layout_editor_absoluteY="-300dp">
+        </androidx.camera.view.PreviewView>
+
+        <Button
+            android:id="@+id/capture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/rounded_corner"
+            android:text="Capture"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginBottom="20dp"/>
+
+        <ImageView
+            android:id="@+id/closePreviewBtn"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/close"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.063"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.042" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>

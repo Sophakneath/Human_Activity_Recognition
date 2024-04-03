@@ -69,6 +69,8 @@ dependencies {
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
+    implementation(libs.tensorflow.lite.task.vision.play.services)
+    implementation(libs.play.services.tflite.gpu)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

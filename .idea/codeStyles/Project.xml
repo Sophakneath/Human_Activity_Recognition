@@ -1,6 +1,37 @@
 <component name="ProjectCodeStyleConfiguration">
   <code_scheme name="Project" version="173">
+    <option name="RIGHT_MARGIN" value="100" />
+    <JavaCodeStyleSettings>
+      <option name="IMPORT_LAYOUT_TABLE">
+        <value>
+          <package name="android" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="androidx" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="com" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="junit" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="net" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="org" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="java" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="javax" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="" withSubpackages="true" static="false" />
+          <emptyLine />
+          <package name="" withSubpackages="true" static="true" />
+          <emptyLine />
+        </value>
+      </option>
+    </JavaCodeStyleSettings>
+    <JetCodeStyleSettings>
+      <option name="CODE_STYLE_DEFAULTS" value="KOTLIN_OFFICIAL" />
+    </JetCodeStyleSettings>
     <codeStyleSettings language="XML">
+      <option name="FORCE_REARRANGE_MODE" value="1" />
       <indentOptions>
         <option name="CONTINUATION_INDENT_SIZE" value="4" />
       </indentOptions>
@@ -11,7 +42,6 @@
               <match>
                 <AND>
                   <NAME>xmlns:android</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>^$</XML_NAMESPACE>
                 </AND>
               </match>
@@ -22,7 +52,6 @@
               <match>
                 <AND>
                   <NAME>xmlns:.*</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>^$</XML_NAMESPACE>
                 </AND>
               </match>
@@ -34,7 +63,6 @@
               <match>
                 <AND>
                   <NAME>.*:id</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>http://schemas.android.com/apk/res/android</XML_NAMESPACE>
                 </AND>
               </match>
@@ -45,7 +73,6 @@
               <match>
                 <AND>
                   <NAME>.*:name</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>http://schemas.android.com/apk/res/android</XML_NAMESPACE>
                 </AND>
               </match>
@@ -56,7 +83,6 @@
               <match>
                 <AND>
                   <NAME>name</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>^$</XML_NAMESPACE>
                 </AND>
               </match>
@@ -67,7 +93,6 @@
               <match>
                 <AND>
                   <NAME>style</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>^$</XML_NAMESPACE>
                 </AND>
               </match>
@@ -78,7 +103,6 @@
               <match>
                 <AND>
                   <NAME>.*</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>^$</XML_NAMESPACE>
                 </AND>
               </match>
@@ -90,7 +114,6 @@
               <match>
                 <AND>
                   <NAME>.*</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>http://schemas.android.com/apk/res/android</XML_NAMESPACE>
                 </AND>
               </match>
@@ -102,7 +125,6 @@
               <match>
                 <AND>
                   <NAME>.*</NAME>
-                  <XML_ATTRIBUTE />
                   <XML_NAMESPACE>.*</XML_NAMESPACE>
                 </AND>
               </match>
@@ -111,6 +133,9 @@
           </section>
         </rules>
       </arrangement>
+    </codeStyleSettings>
+    <codeStyleSettings language="kotlin">
+      <option name="CODE_STYLE_DEFAULTS" value="KOTLIN_OFFICIAL" />
     </codeStyleSettings>
   </code_scheme>
 </component>

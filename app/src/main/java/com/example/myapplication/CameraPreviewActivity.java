@@ -1,11 +1,6 @@
 package com.example.myapplication;
 
-import static com.example.myapplication.utils.Constant.REQUEST_CODE_CHILD_ACTIVITY;
-import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
-import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
-
 import android.content.ContentValues;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
@@ -17,13 +12,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
@@ -32,7 +24,6 @@ import androidx.camera.core.ImageCaptureException;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -40,18 +31,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.LifecycleOwner;
 
-import com.example.myapplication.utils.DetectionListener;
-import com.example.myapplication.utils.ObjectDetectorHelper;
-import com.github.mikephil.charting.charts.LineChart;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tflite.client.TfLiteInitializationOptions;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import org.tensorflow.lite.task.gms.vision.TfLiteVision;
-import org.tensorflow.lite.task.gms.vision.detector.ObjectDetector;
-
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
@@ -59,103 +40,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-public class ActivityRecognition extends AppCompatActivity implements DetectionListener {
-    private ObjectDetectorHelper detectorHelper;
-    private static final String TAG = ActivityRecognition.class.getName();
-    LinearLayout mainView;
-    ConstraintLayout secondView;
+import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
+import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
 
-    private ObjectDetector initializeModel() throws IOException {
-//        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
-//        TfLiteVision.initialize(ActivityRecognition.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
-//            @Override
-//            public void onSuccess(Void unused) {
-//
-//            }
-//        }).addOnFailureListener(new OnFailureListener() {
-//            @Override
-//            public void onFailure(@NonNull Exception e) {
-//
-//            }
-//        });
-
-        String modelName = "activity_recognition_model.tflite";
-        ObjectDetector.ObjectDetectorOptions.Builder optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
-                        .setScoreThreshold(10)
-                        .setMaxResults(2);
-
-        ObjectDetector objectDetector= ObjectDetector.createFromFileAndOptions(ActivityRecognition.this, modelName, optionsBuilder.build());
-        return objectDetector;
-    }
-
-    @Override
-    public void onDetectionResult(String result) {
-        // Handle detection result here
-        System.out.println("Received detection result: " + result);
-        // Update UI or perform other actions based on detection result
-        Toast toast = Toast.makeText(ActivityRecognition.this, result, Toast.LENGTH_LONG);
-        toast.show();
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_act_recognition);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-
-        ImageView close = (ImageView)findViewById(R.id.closePreview);
-        mainView = findViewById(R.id.mainView);
-        secondView = findViewById(R.id.secondView);
-
-        close.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                ActivityRecognition.this.finish();
-            }
-        });
-
-        Button start = (Button) findViewById(R.id.start);
-        ImageView imageResult = (ImageView) findViewById(R.id.imageResult);
-        TextView confident = (TextView) findViewById(R.id.confident);
-        LineChart lineChart = (LineChart) findViewById(R.id.graph);
-        start.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-//                Intent myIntent = new Intent(ActivityRecognition.this, CameraPreviewActivity.class);
-//                ActivityRecognition.this.startActivityForResult(myIntent, REQUEST_CODE_CHILD_ACTIVITY);
-                mainView.setVisibility(View.GONE);
-                secondView.setVisibility(View.VISIBLE);
-                if (!checkPermissions()) requestPermission();
-                else startCamera();
-            }
-        });
-    }
-
-//    @Override
-//    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-//        super.onActivityResult(requestCode, resultCode, data);
-////        if (requestCode == REQUEST_CODE_CHILD_ACTIVITY) {
-////            if (resultCode == RESULT_OK) {
-////                TextView txtViewResult = (TextView) findViewById(R.id.result);
-////                String result = data.getStringExtra("result");
-////                txtViewResult.setText(result);
-////            }
-////        }
-//        detectorHelper = new ObjectDetectorHelper();
-//        detectorHelper.setListener(this);
-//        Executor mCameraExecutor = Executors.newSingleThreadExecutor();
-//        try {
-//            detectorHelper.imageAnalysis(mCameraExecutor, initializeModel());
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-
+public class CameraPreviewActivity extends AppCompatActivity {
+    private static final String TAG = CameraPreviewActivity.class.getName();
     private boolean checkPermissions() {
         for(String permission: REQUIRED_PERMISSIONS){
             int permissionState = ActivityCompat.checkSelfPermission(this, permission);
@@ -177,6 +66,8 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
             else Log.i(TAG, "Permission Denied");
         }
     }
+
+
 
     private void startCamera() {
         final ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
@@ -211,12 +102,12 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                 Uri outputUri = outputFileResults.getSavedUri();
-                MediaScannerConnection.scanFile(ActivityRecognition.this,
+                MediaScannerConnection.scanFile(CameraPreviewActivity.this,
                         new String[]{outputUri.getPath()}, null,
                         new MediaScannerConnection.OnScanCompletedListener() {
                             @Override
                             public void onScanCompleted(String path, Uri uri) {
-                                Toast toast = Toast.makeText(ActivityRecognition.this, "Image Saved.", Toast.LENGTH_LONG);
+                                Toast toast = Toast.makeText(CameraPreviewActivity.this, "Image Saved.", Toast.LENGTH_LONG);
                                 toast.show();
                             }
                         });
@@ -260,19 +151,32 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
             @Override
             public void onClick(View view) {
                 takePhoto(imageCapture, mCameraExecutor);
-                mainView.setVisibility(View.VISIBLE);
-                secondView.setVisibility(View.GONE);
-
-                detectorHelper = new ObjectDetectorHelper();
-                detectorHelper.setListener(ActivityRecognition.this);
-                try {
-                    detectorHelper.imageAnalysis(mCameraExecutor, initializeModel());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                CameraPreviewActivity.this.finish();
             }
         });
 
         ///////////////////////////////////////////////////////////////////////////////////////////
+    }
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_camera_preview);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
+        ImageView close = findViewById(R.id.closePreview);
+        close.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CameraPreviewActivity.this.finish();
+            }
+        });
+
+        if (!checkPermissions()) requestPermission();
+        else startCamera();
     }
 }

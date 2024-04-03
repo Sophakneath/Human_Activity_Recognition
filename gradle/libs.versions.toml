@@ -17,6 +17,11 @@ mpandroidchart = "v3.1.0"
 cameraCamera2 = "1.4.0-alpha04"
 cameraLifecycle = "1.4.0-alpha04"
 cameraView = "1.4.0-alpha04"
+tensorflowLiteTaskVisionPlayServices = "0.4.4"
+playServicesTfliteGpu = "16.2.0"
+objectDetectionCommon = "18.0.0"
+objectDetectionCustom = "17.0.1"
+objectDetectionCustomVersion = "17.0.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -42,6 +47,8 @@ mp-android-chart = { group = "com.github.PhilJay", name = "MPAndroidChart", vers
 camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraCamera2" }
 camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraLifecycle" }
 camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
+tensorflow-lite-task-vision-play-services = { group = "org.tensorflow", name = "tensorflow-lite-task-vision-play-services", version.ref = "tensorflowLiteTaskVisionPlayServices" }
+play-services-tflite-gpu = { group = "com.google.android.gms", name = "play-services-tflite-gpu", version.ref = "playServicesTfliteGpu" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
