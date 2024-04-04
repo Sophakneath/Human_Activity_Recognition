@@ -7,6 +7,7 @@ import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
@@ -42,50 +43,139 @@ import androidx.lifecycle.LifecycleOwner;
 
 import com.example.myapplication.utils.DetectionListener;
 import com.example.myapplication.utils.ObjectDetectorHelper;
+import com.example.myapplication.utils.SensorDataCapture;
 import com.github.mikephil.charting.charts.LineChart;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tflite.client.TfLiteInitializationOptions;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.tensorflow.lite.Interpreter;
 
-import org.tensorflow.lite.task.gms.vision.TfLiteVision;
-import org.tensorflow.lite.task.gms.vision.detector.ObjectDetector;
-
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
 public class ActivityRecognition extends AppCompatActivity implements DetectionListener {
     private ObjectDetectorHelper detectorHelper;
     private static final String TAG = ActivityRecognition.class.getName();
     LinearLayout mainView;
     ConstraintLayout secondView;
-
-    private ObjectDetector initializeModel() throws IOException {
-//        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
-//        TfLiteVision.initialize(ActivityRecognition.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
-//            @Override
-//            public void onSuccess(Void unused) {
+    Interpreter interpreterApi;
+    private boolean isInitialized;
+    private int inputImageWidth;
+    private int inputImageHeight;
+    private int modelInputSize;
+    private static final String MODEL_FILE = "activity_recognition_model.tflite";
+    private static final int FLOAT_TYPE_SIZE = 4;
+    private static final int PIXEL_SIZE = 3;
+//    private ObjectDetector initializeModel() throws IOException {
+////        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
+////        TfLiteVision.initialize(ActivityRecognition.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
+////            @Override
+////            public void onSuccess(Void unused) {
+////
+////            }
+////        }).addOnFailureListener(new OnFailureListener() {
+////            @Override
+////            public void onFailure(@NonNull Exception e) {
+////
+////            }
+////        });
 //
-//            }
-//        }).addOnFailureListener(new OnFailureListener() {
-//            @Override
-//            public void onFailure(@NonNull Exception e) {
+//        String modelName = "activity_recognition_model.tflite";
+//        ObjectDetector.ObjectDetectorOptions.Builder optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
+//                        .setScoreThreshold(10)
+//                        .setMaxResults(2);
 //
-//            }
-//        });
+//        ObjectDetector objectDetector= ObjectDetector.createFromFileAndOptions(ActivityRecognition.this, modelName, optionsBuilder.build());
+//        return objectDetector;
+//    }
 
-        String modelName = "activity_recognition_model.tflite";
-        ObjectDetector.ObjectDetectorOptions.Builder optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
-                        .setScoreThreshold(10)
-                        .setMaxResults(2);
+    public void initializeInterpreter() {
+        // Load the TF Lite model
+        AssetManager assetManager = this.getAssets();
+        ByteBuffer model = null;
+       try{
+            model = loadModelFile(assetManager);
+       }catch (Exception e){
+           Log.d("","xee:"+e.getMessage());
+       }
+       if (model == null)  Log.d("","xee:"+"LOAD FAILED");
 
-        ObjectDetector objectDetector= ObjectDetector.createFromFileAndOptions(ActivityRecognition.this, modelName, optionsBuilder.build());
-        return objectDetector;
+        // Initialize TF Lite Interpreter with NNAPI enabled
+        Interpreter.Options options = new Interpreter.Options();
+        options.setUseNNAPI(true);
+        Interpreter interpreter = new Interpreter(model,options);
+
+
+        // Finish interpreter initialization
+        this.interpreterApi = interpreter;
+        isInitialized = true;
+        Log.d(TAG, "Initialized TFLite interpreter.");
+
+        // TEST
+        FutureTask<float[][]> classificationTask = classifyAsync();
+        try {
+            float[][] result = classificationTask.get();
+            // Do something with the classification result
+
+            for (float i : result[0]) {
+                System.out.println("Classification Result: " + i);
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            // Handle any exceptions that may occur
+            e.printStackTrace();
+        }
+    }
+    float[][] predict(){
+        // Read input shape from model file
+        int[] inputShape = interpreterApi.getInputTensor(0).shape();
+        inputImageWidth = inputShape[1];
+        inputImageHeight = inputShape[2];
+        modelInputSize = FLOAT_TYPE_SIZE * inputImageWidth * inputImageHeight * PIXEL_SIZE;
+        long startTime = System.nanoTime();
+        float[][] result = new float[1][6];
+        if (interpreterApi != null) {
+
+            interpreterApi.run(SensorDataCapture.generateMockInputData(), result);
+        }
+        long elapsedTime = (System.nanoTime() - startTime) / 1000000;
+        Log.d(TAG, "Inference time = " + elapsedTime + "ms");
+        return result;
+    }
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    public FutureTask<float[][]> classifyAsync() {
+        FutureTask<float[][]> task = new FutureTask<>(() -> predict());
+        executorService.execute(task);
+        return task;
+    }
+
+    private ByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
+        FileInputStream inputStream = null;
+        FileChannel fileChannel = null;
+        ByteBuffer buffer = null;
+        try {
+            inputStream = new FileInputStream(assetManager.openFd(MODEL_FILE).getFileDescriptor());
+            fileChannel = inputStream.getChannel();
+            long startOffset = assetManager.openFd(MODEL_FILE).getStartOffset();
+            long declaredLength = assetManager.openFd(MODEL_FILE).getDeclaredLength();
+            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            if (fileChannel != null) {
+                fileChannel.close();
+            }
+        }
+        return buffer;
     }
 
     @Override
@@ -100,6 +190,7 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        initializeInterpreter();
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_act_recognition);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -265,11 +356,11 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
 
                 detectorHelper = new ObjectDetectorHelper();
                 detectorHelper.setListener(ActivityRecognition.this);
-                try {
-                    detectorHelper.imageAnalysis(mCameraExecutor, initializeModel());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+//                try {
+//                    detectorHelper.imageAnalysis(mCameraExecutor, initializeModel());
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
             }
         });
 

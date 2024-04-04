@@ -51,7 +51,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
@@ -69,8 +68,9 @@ dependencies {
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
-    implementation(libs.tensorflow.lite.task.vision.play.services)
-    implementation(libs.play.services.tflite.gpu)
+//    implementation(libs.tensorflow.lite.task.vision.play.services)
+//    implementation(libs.play.services.tflite.gpu)
+    implementation("org.tensorflow:tensorflow-lite:2.3.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
