@@ -1,25 +1,12 @@
 package com.example.myapplication.utils;
 
+import android.graphics.Bitmap;
+import android.util.Log;
 import android.util.Size;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
-
-import com.example.myapplication.ActivityRecognition;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tflite.client.TfLiteInitializationOptions;
-
-import org.tensorflow.lite.support.image.ImageProcessor;
-import org.tensorflow.lite.support.image.TensorImage;
-import org.tensorflow.lite.support.image.ops.Rot90Op;
-import org.tensorflow.lite.task.gms.vision.TfLiteVision;
-import org.tensorflow.lite.task.gms.vision.detector.Detection;
-import org.tensorflow.lite.task.gms.vision.detector.ObjectDetector;
-
-import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.Executor;
 
 public class ObjectDetectorHelper {
@@ -30,32 +17,44 @@ public class ObjectDetectorHelper {
         this.listener = listener;
     }
 
-    public void imageAnalysis(Executor mCameraExecutor, ObjectDetector mObjectDetector) {
+    public void imageAnalysis(Executor mCameraExecutor) {
         ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                 .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+
+        final Bitmap[] cameraFrameBuffer = {null};
+        final int dnnInputSize = 257;
 
         imageAnalysis.setAnalyzer(mCameraExecutor, new ImageAnalysis.Analyzer() {
             @Override
             public void analyze(@NonNull ImageProxy image) {
                 int rotationDegrees = image.getImageInfo().getRotationDegrees();
+
+                if (cameraFrameBuffer[0] == null) {
+                    cameraFrameBuffer[0] = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
+                }
+
+                cameraFrameBuffer[0].copyPixelsFromBuffer(image.getPlanes()[0].getBuffer());
+
+
+
+
                 //coding here
                 // Preprocess the image and convert it into a TensorImage for detection
-                ImageProcessor imageProcessor = new ImageProcessor.Builder()
-                        .add(new Rot90Op(rotationDegrees / 90))
-                        .build();
+//                ImageProcessor imageProcessor = new ImageProcessor.Builder()
+//                        .add(new Rot90Op(rotationDegrees / 90))
+//                        .build();
 
                 // Preprocess the image and convert it into a TensorImage for detection.
-                TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image.toBitmap()));
-
-                ObjectDetector objectDetector = null;
-                objectDetector = mObjectDetector;
-
-                List<Detection> results = objectDetector.detect(tensorImage);
-                if (listener != null) {
-                    listener.onDetectionResult(String.valueOf(results.size()));
-                }
+//                TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image.toBitmap()));
+//
+//                List<Detection> results = mObjectDetector.detect(tensorImage);
+//                Log.d("",listener.toString());
+//                if (listener != null) {
+//                    listener.onDetectionResult(String.valueOf(results.size()));
+//                }
             }
         });
+
     }
 
 //    private ObjectDetector initializeModel() throws IOException {

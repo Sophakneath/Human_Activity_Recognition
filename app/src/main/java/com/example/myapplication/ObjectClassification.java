@@ -3,8 +3,11 @@ package com.example.myapplication;
 import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
 import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
 
+import android.app.Activity;
 import android.content.ContentValues;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
+import android.content.res.AssetManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
@@ -12,7 +15,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
-import android.util.Size;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -24,10 +26,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
-import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -38,17 +38,99 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.LifecycleOwner;
 
+import com.example.myapplication.utils.DetectionListener;
+import com.example.myapplication.utils.ObjectDetectorHelper;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Vector;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-public class ObjectClassification extends AppCompatActivity {
+public class ObjectClassification extends AppCompatActivity implements DetectionListener {
     private static final String TAG = ActivityRecognition.class.getName();
+    private ObjectDetectorHelper detectorHelper;
+
+    private MappedByteBuffer loadModelFile(Activity activity, String model) throws IOException {
+        AssetManager am = activity.getAssets();
+
+        AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(model);
+        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+        FileChannel fileChannel = inputStream.getChannel();
+        long startOffset = fileDescriptor.getStartOffset();
+
+        long declaredLength = fileDescriptor.getDeclaredLength();
+
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+    }
+    private void initializeModel() {
+//        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
+//        TfLiteVision.initialize(ObjectClassification.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
+//            @Override
+//            public void onSuccess(Void unused) {
+//                Log.d(TAG, "Success");
+//                String modelName = "2.tflite";
+//                MappedByteBuffer tfliteModel;
+//                try {
+//                    tfliteModel = loadModelFile(ObjectClassification.this, modelName);
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//
+//                Interpreter segmentationDNN;
+//                Interpreter.Options options = new Interpreter.Options();
+//                segmentationDNN = new Interpreter(tfliteModel, options);
+//
+//                int numInputs = segmentationDNN.getInputTensorCount();
+//                float[][][][] dnnInput;
+//                Map<Integer, Object> dnnOutputMap = new HashMap<>();
+//                Vector<float[][][][]> separatedOutputs = new Vector<>();
+//
+//                for (int i=0; i<numInputs; i++) {
+//                    Tensor inputTensor = segmentationDNN.getInputTensor(i);
+//                    Log.d(TAG, Arrays.toString(inputTensor.shape()));
+//                    int[] shape = inputTensor.shape();
+//                    dnnInput = new float[shape[0]][shape[1]][shape[2]][shape[3]];
+//                }
+//
+//                int numOutputs = segmentationDNN.getOutputTensorCount();
+//                for (int i=0; i<numOutputs; i++) {
+//                    Tensor inputTensor = segmentationDNN.getOutputTensor(i);
+//                    int[] shape = inputTensor.shape();
+//                    float[][][][] output = new float[shape[0]][shape[1]][shape[2]][shape[3]];
+//                    dnnOutputMap.put(i, output);
+//                    separatedOutputs.add(output);
+//                }
+//
+////                ObjectDetector.ObjectDetectorOptions.Builder optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
+////                        .setScoreThreshold(10)
+////                        .setMaxResults(2);
+////                try {
+////                    mObjectDetector = ObjectDetector.createFromFileAndOptions(ActivityRecognition.this, modelName, optionsBuilder.build());
+////                }catch (Exception e){
+////                    Log.d(TAG,e.getMessage());
+////                }
+//
+//            }
+//        }).addOnFailureListener(new OnFailureListener() {
+//            @Override
+//            public void onFailure(@NonNull Exception e) {
+//
+//                Log.d(TAG, e.getMessage());
+//            }
+//        });
+    }
+
     private boolean checkPermissions() {
         for(String permission: REQUIRED_PERMISSIONS){
             int permissionState = ActivityCompat.checkSelfPermission(this, permission);
@@ -130,17 +212,17 @@ public class ObjectClassification extends AppCompatActivity {
         }) ;
     }
 
-    private void imageAnalysis(Executor mCameraExecutor) {
-        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
-                .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
-
-        imageAnalysis.setAnalyzer(mCameraExecutor, new ImageAnalysis.Analyzer() {
-            @Override
-            public void analyze(@NonNull ImageProxy image) {
-                int rotationDegrees = image.getImageInfo().getRotationDegrees();
-            }
-        });
-    }
+//    private void imageAnalysis(Executor mCameraExecutor) {
+//        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+//                .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+//
+//        imageAnalysis.setAnalyzer(mCameraExecutor, new ImageAnalysis.Analyzer() {
+//            @Override
+//            public void analyze(@NonNull ImageProxy image) {
+//                int rotationDegrees = image.getImageInfo().getRotationDegrees();
+//            }
+//        });
+//    }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
     void bindUseCases(@NonNull ProcessCameraProvider cameraProvider) {
@@ -172,15 +254,11 @@ public class ObjectClassification extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 takePhoto(imageCapture, mCameraExecutor);
+                detectorHelper = new ObjectDetectorHelper();
+                detectorHelper.setListener(ObjectClassification.this);
+                detectorHelper.imageAnalysis(mCameraExecutor);
             }
         });
-
-        ///////////////////////////////////////////////////////////////////////////////////////////
-
-
-        ///////////////////////////////// Image Analysis Use Case /////////////////////////////////
-
-        imageAnalysis(mCameraExecutor);
 
         ///////////////////////////////////////////////////////////////////////////////////////////
     }
@@ -197,6 +275,7 @@ public class ObjectClassification extends AppCompatActivity {
         });
 
         ImageView close = (ImageView)findViewById(R.id.closePreview);
+        initializeModel();
         close.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -209,5 +288,14 @@ public class ObjectClassification extends AppCompatActivity {
         ImageView imageResult = (ImageView) findViewById(R.id.imageResult);
         TextView confident = (TextView) findViewById(R.id.confident);
 
+    }
+
+    @Override
+    public void onDetectionResult(String result) {
+        // Handle detection result here
+        System.out.println("Received detection result: " + result);
+        // Update UI or perform other actions based on detection result
+        Toast toast = Toast.makeText(ObjectClassification.this, result, Toast.LENGTH_LONG);
+        toast.show();
     }
 }

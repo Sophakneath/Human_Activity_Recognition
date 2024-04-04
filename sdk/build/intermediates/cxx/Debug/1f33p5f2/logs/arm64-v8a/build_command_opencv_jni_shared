@@ -1,0 +1,4 @@
+/Users/phakneath/Library/Android/sdk/cmake/3.22.1/bin/ninja \
+  -C \
+  /Users/phakneath/Desktop/Mobile_HW1/sdk/.cxx/Debug/1f33p5f2/arm64-v8a \
+  opencv_jni_shared

@@ -1,101 +1,69 @@
 package com.example.myapplication;
 
-import static com.example.myapplication.utils.Constant.REQUEST_CODE_CHILD_ACTIVITY;
-import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
-import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
-
-import android.content.ContentValues;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.media.MediaScannerConnection;
-import android.net.Uri;
-import android.os.Build;
+import android.content.Context;
+import android.content.res.AssetManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ImageCapture;
-import androidx.camera.core.ImageCaptureException;
-import androidx.camera.core.Preview;
-import androidx.camera.lifecycle.ProcessCameraProvider;
-import androidx.camera.view.PreviewView;
-import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.lifecycle.LifecycleOwner;
 
-import com.example.myapplication.utils.DetectionListener;
-import com.example.myapplication.utils.ObjectDetectorHelper;
+import com.example.myapplication.utils.SensorDataCapture;
 import com.github.mikephil.charting.charts.LineChart;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tflite.client.TfLiteInitializationOptions;
-import com.google.common.util.concurrent.ListenableFuture;
 
-import org.tensorflow.lite.task.gms.vision.TfLiteVision;
-import org.tensorflow.lite.task.gms.vision.detector.ObjectDetector;
+import org.tensorflow.lite.Interpreter;
 
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ActivityRecognition extends AppCompatActivity implements DetectionListener {
-    private ObjectDetectorHelper detectorHelper;
+public class ActivityRecognition extends AppCompatActivity implements SensorEventListener {
     private static final String TAG = ActivityRecognition.class.getName();
-    LinearLayout mainView;
-    ConstraintLayout secondView;
+    SensorManager sensorManager;
+    List<Sensor> sensorList;
+    Sensor accSensor;
+    SensorEventListener sensorEventListener;
+    SensorDataCapture sensorDataCapture;
+    private String[] activities = {"Downstairs", "Jogging", "Sitting", "Standing", "Upstairs", "Walking"};
 
-    private ObjectDetector initializeModel() throws IOException {
-//        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
-//        TfLiteVision.initialize(ActivityRecognition.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
-//            @Override
-//            public void onSuccess(Void unused) {
-//
-//            }
-//        }).addOnFailureListener(new OnFailureListener() {
-//            @Override
-//            public void onFailure(@NonNull Exception e) {
-//
-//            }
-//        });
+    ImageView imageResult;
+    TextView confident, resultView;
+    LineChart lineChart;
 
-        String modelName = "activity_recognition_model.tflite";
-        ObjectDetector.ObjectDetectorOptions.Builder optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
-                        .setScoreThreshold(10)
-                        .setMaxResults(2);
+    Interpreter interpreterApi;
+    private Sensor accelerometerSensor;
 
-        ObjectDetector objectDetector= ObjectDetector.createFromFileAndOptions(ActivityRecognition.this, modelName, optionsBuilder.build());
-        return objectDetector;
-    }
+    private static final int BATCH_SIZE = 1;
+    private static final int DATA_POINTS = 90;
+    private static final int AXES = 3;
+    private static final int CHANNELS = 1;
+    private static List<Float> ax;
+    private static List<Float> ay;
+    private static List<Float> az;
 
-    @Override
-    public void onDetectionResult(String result) {
-        // Handle detection result here
-        System.out.println("Received detection result: " + result);
-        // Update UI or perform other actions based on detection result
-        Toast toast = Toast.makeText(ActivityRecognition.this, result, Toast.LENGTH_LONG);
-        toast.show();
-    }
+    private List<List<Float>> xyz;
+    int windowSize = 45;
+    private float[][][][] inputData = new float[BATCH_SIZE][DATA_POINTS][AXES][CHANNELS];
+
+    private int counter = 0;
+
+    private static List<Float> ma;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,9 +76,27 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
             return insets;
         });
 
+        sensorDataCapture(this);
+
+        // Load the TFLite model
+        AssetManager assetManager = this.getAssets();
+        try{
+            Interpreter.Options options = new Interpreter.Options();
+            options.setUseNNAPI(true);
+            Interpreter interpreter = new Interpreter(loadModelFile(assetManager), options);
+            // Finish interpreter initialization
+            this.interpreterApi = interpreter;
+            Log.d("TAG", "Initialized TFLite interpreter.");
+        }catch (Exception e){
+            Log.d("","xee:"+e.getMessage());
+        }
+
+        ax = new ArrayList<>(); ay = new ArrayList<>(); az = new ArrayList<>();
         ImageView close = (ImageView)findViewById(R.id.closePreview);
-        mainView = findViewById(R.id.mainView);
-        secondView = findViewById(R.id.secondView);
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        sensorList = sensorManager.getSensorList(Sensor.TYPE_ACCELEROMETER);
+        accSensor = sensorList.get(0);
 
         close.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -120,159 +106,176 @@ public class ActivityRecognition extends AppCompatActivity implements DetectionL
         });
 
         Button start = (Button) findViewById(R.id.start);
-        ImageView imageResult = (ImageView) findViewById(R.id.imageResult);
-        TextView confident = (TextView) findViewById(R.id.confident);
-        LineChart lineChart = (LineChart) findViewById(R.id.graph);
+        Button end = (Button) findViewById(R.id.end);
+        imageResult = (ImageView) findViewById(R.id.imageResult);
+        confident = (TextView) findViewById(R.id.confident);
+        lineChart = (LineChart) findViewById(R.id.graph);
+        resultView = (TextView) findViewById(R.id.result);
         start.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                Intent myIntent = new Intent(ActivityRecognition.this, CameraPreviewActivity.class);
-//                ActivityRecognition.this.startActivityForResult(myIntent, REQUEST_CODE_CHILD_ACTIVITY);
-                mainView.setVisibility(View.GONE);
-                secondView.setVisibility(View.VISIBLE);
-                if (!checkPermissions()) requestPermission();
-                else startCamera();
+                startCapturing();
+            }
+        });
+
+        end.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stopCapturing();
             }
         });
     }
 
-//    @Override
-//    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-//        super.onActivityResult(requestCode, resultCode, data);
-////        if (requestCode == REQUEST_CODE_CHILD_ACTIVITY) {
-////            if (resultCode == RESULT_OK) {
-////                TextView txtViewResult = (TextView) findViewById(R.id.result);
-////                String result = data.getStringExtra("result");
-////                txtViewResult.setText(result);
-////            }
-////        }
-//        detectorHelper = new ObjectDetectorHelper();
-//        detectorHelper.setListener(this);
-//        Executor mCameraExecutor = Executors.newSingleThreadExecutor();
-//        try {
-//            detectorHelper.imageAnalysis(mCameraExecutor, initializeModel());
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
+    // File path to the TFLite model
+    private static final String MODEL_PATH = "activity_recognition_model.tflite";
 
-    private boolean checkPermissions() {
-        for(String permission: REQUIRED_PERMISSIONS){
-            int permissionState = ActivityCompat.checkSelfPermission(this, permission);
-            if(permissionState != PackageManager.PERMISSION_GRANTED) return false;
+    // Number of classes for human activity recognition
+    private static final int NUM_CLASSES = 6; // Example: Walking, Running, Sitting, Standing, etc.
+    private static final int NUM_DATA_POINTS = 90;
+    private static final int NUM_AXES = 3;
+
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    // Method to load the TFLite model file
+    private ByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
+        FileInputStream inputStream = null;
+        FileChannel fileChannel = null;
+        ByteBuffer buffer = null;
+        try {
+            inputStream = new FileInputStream(assetManager.openFd(MODEL_PATH).getFileDescriptor());
+            fileChannel = inputStream.getChannel();
+            long startOffset = assetManager.openFd(MODEL_PATH).getStartOffset();
+            long declaredLength = assetManager.openFd(MODEL_PATH).getDeclaredLength();
+            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            if (fileChannel != null) {
+                fileChannel.close();
+            }
         }
-        return true;
+        return buffer;
     }
 
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
+    private int inputImageWidth;
+    private int inputImageHeight;
+    private int modelInputSize;
+    private static final int FLOAT_TYPE_SIZE = 4;
+    private static final int PIXEL_SIZE = 3;
+
+    float[][] predict(){
+        // Read input shape from model file
+        int[] inputShape = interpreterApi.getInputTensor(0).shape();
+        inputImageWidth = inputShape[1];
+        inputImageHeight = inputShape[2];
+        modelInputSize = FLOAT_TYPE_SIZE * inputImageWidth * inputImageHeight * PIXEL_SIZE;
+        long startTime = System.nanoTime();
+        float[][] result = new float[1][6];
+        if (interpreterApi != null) {
+            interpreterApi.run(inputData, result);
+            // Do something with the classification result
+
+            for (float i : result[0]) {
+                Log.d("TAG", "Classification Result: " + i);
+            }
+
+            int index = findPredictedActivity(result[0]);
+            Log.d("TAG", String.valueOf(result[0]));
+            resultView.setText(activities[index]);
+        }
+        long elapsedTime = (System.nanoTime() - startTime) / 1000000;
+        Log.d("TAG", "Inference time = " + elapsedTime + "ms");
+        return result;
+    }
+
+//     Method to find the predicted activity from output scores
+    private int findPredictedActivity(float[] outputScores) {
+        // Find index of highest score
+        int maxIndex = 0;
+        for (int i = 1; i < outputScores.length; i++) {
+            if (outputScores[i] > outputScores[maxIndex]) {
+                maxIndex = i;
+            }
+        }
+        // Return index of predicted activity
+        return maxIndex;
+    }
+
+    private static float round(float d, int decimalPlace) {
+        BigDecimal bd = new BigDecimal(Float.toString(d));
+        bd = bd.setScale(decimalPlace, BigDecimal.ROUND_HALF_UP);
+        return bd.floatValue();
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (grantResults.length <= 0) Log.i(TAG, "User interaction was cancelled");
-            else if (grantResults[0] == PackageManager.PERMISSION_GRANTED) startCamera();
-            else Log.i(TAG, "Permission Denied");
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Not used
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent sensorEvent) {
+        if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            ax.add(sensorEvent.values[0]);
+            ay.add(sensorEvent.values[1]);
+            az.add(sensorEvent.values[2]);
+
+            if (ax.size() == 270 && ay.size() == 270 && az.size() == 270) {
+                ax = ax.subList(ax.size() - 46, ax.size() - 1);
+                ay = ay.subList(ay.size() - 46, ay.size() - 1);
+                az = az.subList(az.size() - 46, az.size() - 1);
+                Log.d("TAG", "ax: " + ax.size());
+                counter = 45;
+            }
+            counter++;
+        }
+        if (ax.size() == DATA_POINTS && ay.size() == DATA_POINTS && az.size() == DATA_POINTS) {
+            Log.d("TAG", "Counter first: " + counter);
+            counter = 0;
+            for (int i = 0; i < DATA_POINTS; i++) {
+                inputData[0][i][0][0] = ax.get(i);
+                inputData[0][i][1][0] = ay.get(i);
+                inputData[0][i][2][0] = az.get(i);
+            }
+            predict();
+        }
+        else {
+            if (counter == DATA_POINTS) {
+                Log.d("TAG", "Counter Second: " + counter);
+                Log.d("TAG", "List size: " + ax.size());
+                counter = 0;
+                for (int i = ax.size() - DATA_POINTS - windowSize; i < ax.size() - windowSize; i++) {
+                    inputData[0][i - windowSize][0][0] = ax.get(i);
+                    inputData[0][i - windowSize][1][0] = ay.get(i);
+                    inputData[0][i - windowSize][2][0] = az.get(i);
+                }
+                predict();
+            }
         }
     }
 
-    private void startCamera() {
-        final ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
-        cameraProviderFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        bindUseCases(cameraProvider);
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }, ContextCompat.getMainExecutor(this));
+    public void startCapturing() {
+        if (accelerometerSensor != null) {
+            sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_UI);
+            Log.d("TAG", "Started capturing sensor data.");
+        } else {
+            Log.e("TAG", "Accelerometer sensor not available.");
+        }
     }
 
-    private void takePhoto(ImageCapture imageCapture, Executor mCameraExecutor) {
-        ContentValues contentValues = new ContentValues();
-        long currentTime = System.currentTimeMillis();
-
-        contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()));
-        contentValues.put(MediaStore.Images.Media.DATE_TAKEN, currentTime);
-        contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
-
-        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(getContentResolver(),
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues).build();
-
-        imageCapture.takePicture(outputFileOptions, mCameraExecutor, new ImageCapture.OnImageSavedCallback() {
-            @Override
-            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                Uri outputUri = outputFileResults.getSavedUri();
-                MediaScannerConnection.scanFile(ActivityRecognition.this,
-                        new String[]{outputUri.getPath()}, null,
-                        new MediaScannerConnection.OnScanCompletedListener() {
-                            @Override
-                            public void onScanCompleted(String path, Uri uri) {
-                                Toast toast = Toast.makeText(ActivityRecognition.this, "Image Saved.", Toast.LENGTH_LONG);
-                                toast.show();
-                            }
-                        });
-                Log.d(TAG, "Camera Saved");
-            }
-
-            @Override
-            public void onError(@NonNull ImageCaptureException exception) {
-
-            }
-        }) ;
+    public void stopCapturing() {
+        sensorManager.unregisterListener(this);
+        Log.d("TAG", "Stopped capturing sensor data.");
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.R)
-    void bindUseCases(@NonNull ProcessCameraProvider cameraProvider) {
-        CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build();
-        Executor mCameraExecutor = Executors.newSingleThreadExecutor();
+    public void sensorDataCapture(Context context) {
+        sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        }
+    }
 
-        ///////////////////////////////////// Preview Use Case ////////////////////////////////////
-        //build preview to use case
-        Preview preview = new Preview.Builder().build();
-
-        //get preview output surface
-        PreviewView mPreviewView = (PreviewView) findViewById(R.id.previewView);
-        preview.setSurfaceProvider(mPreviewView.getSurfaceProvider());
-
-        cameraProvider.unbindAll();
-
-        //bind use cases to camera
-        ImageCapture imageCapture = new ImageCapture.Builder()
-                .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
-        cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, preview, imageCapture);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////
-
-
-        ///////////////////////////////// Image Capture Use Case /////////////////////////////////
-
-        Button capture = findViewById(R.id.capture);
-        capture.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                takePhoto(imageCapture, mCameraExecutor);
-                mainView.setVisibility(View.VISIBLE);
-                secondView.setVisibility(View.GONE);
-
-                detectorHelper = new ObjectDetectorHelper();
-                detectorHelper.setListener(ActivityRecognition.this);
-                try {
-                    detectorHelper.imageAnalysis(mCameraExecutor, initializeModel());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        ///////////////////////////////////////////////////////////////////////////////////////////
+    private void slidingWindow() {
+        int windowSize = 45;
     }
 }

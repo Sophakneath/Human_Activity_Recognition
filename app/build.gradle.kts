@@ -6,10 +6,10 @@ plugins {
 android {
     namespace = "com.example.myapplication"
     compileSdk = 34
-
+    configurations { implementation.get().exclude(mapOf("group" to "org.jetbrains", "module" to "annotations")) }
     defaultConfig {
         applicationId = "com.example.myapplication"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -69,8 +69,17 @@ dependencies {
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
-    implementation(libs.tensorflow.lite.task.vision.play.services)
-    implementation(libs.play.services.tflite.gpu)
+//    implementation(libs.tensorflow.lite.task.vision.play.services)
+//    implementation(libs.play.services.tflite.gpu)
+    implementation(libs.room.compiler)
+    implementation(libs.guava)
+    implementation(libs.tensorflow.lite)
+//    implementation(libs.tensorflow.lite)
+//    implementation(libs.tensorflow.lite.gpu)
+//    implementation(libs.tensorflow.lite.support)
+//    implementation(libs.tensorflow.lite.metadata)
+//    implementation(libs.kotlin.gradle.plugin)
+//    implementation(libs.tensorflow.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
