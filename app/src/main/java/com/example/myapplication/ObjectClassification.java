@@ -1,33 +1,30 @@
 package com.example.myapplication;
 
-import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
-import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
-
-import android.app.Activity;
 import android.content.ContentValues;
 import android.content.pm.PackageManager;
-import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
-import android.media.MediaScannerConnection;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
-import android.view.View;
+import android.util.Size;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
+import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -36,99 +33,63 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.lifecycle.LifecycleOwner;
 
-import com.example.myapplication.utils.DetectionListener;
-import com.example.myapplication.utils.ObjectDetectorHelper;
+import com.example.myapplication.utils.Recognition;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import org.tensorflow.lite.Interpreter;
+
+import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.MappedByteBuffer;
+import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
-import java.util.Vector;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-public class ObjectClassification extends AppCompatActivity implements DetectionListener {
+import static com.example.myapplication.utils.Constant.REQUEST_CODE_PERMISSIONS;
+import static com.example.myapplication.utils.Constant.REQUIRED_PERMISSIONS;
+
+public class ObjectClassification extends AppCompatActivity {
     private static final String TAG = ActivityRecognition.class.getName();
-    private ObjectDetectorHelper detectorHelper;
+//    private ObjectDetectorHelper detectorHelper;
+    Interpreter interpreterApi;
+    private static final String MODEL_PATH = "activity_recognition_model.tflite";
+    ImageCapture imageCapture;
+    Executor mCameraExecutor = Executors.newSingleThreadExecutor();
+    TextView result, confident;
+    ImageView close, imageResult;
+    Button capture;
+    private static final int INPUT_SIZE = 224;
+    private static final int NUM_CLASSES = 1000;
 
-    private MappedByteBuffer loadModelFile(Activity activity, String model) throws IOException {
-        AssetManager am = activity.getAssets();
-
-        AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(model);
-        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
-        FileChannel fileChannel = inputStream.getChannel();
-        long startOffset = fileDescriptor.getStartOffset();
-
-        long declaredLength = fileDescriptor.getDeclaredLength();
-
-        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
-    }
-    private void initializeModel() {
-//        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
-//        TfLiteVision.initialize(ObjectClassification.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
-//            @Override
-//            public void onSuccess(Void unused) {
-//                Log.d(TAG, "Success");
-//                String modelName = "2.tflite";
-//                MappedByteBuffer tfliteModel;
-//                try {
-//                    tfliteModel = loadModelFile(ObjectClassification.this, modelName);
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//
-//                Interpreter segmentationDNN;
-//                Interpreter.Options options = new Interpreter.Options();
-//                segmentationDNN = new Interpreter(tfliteModel, options);
-//
-//                int numInputs = segmentationDNN.getInputTensorCount();
-//                float[][][][] dnnInput;
-//                Map<Integer, Object> dnnOutputMap = new HashMap<>();
-//                Vector<float[][][][]> separatedOutputs = new Vector<>();
-//
-//                for (int i=0; i<numInputs; i++) {
-//                    Tensor inputTensor = segmentationDNN.getInputTensor(i);
-//                    Log.d(TAG, Arrays.toString(inputTensor.shape()));
-//                    int[] shape = inputTensor.shape();
-//                    dnnInput = new float[shape[0]][shape[1]][shape[2]][shape[3]];
-//                }
-//
-//                int numOutputs = segmentationDNN.getOutputTensorCount();
-//                for (int i=0; i<numOutputs; i++) {
-//                    Tensor inputTensor = segmentationDNN.getOutputTensor(i);
-//                    int[] shape = inputTensor.shape();
-//                    float[][][][] output = new float[shape[0]][shape[1]][shape[2]][shape[3]];
-//                    dnnOutputMap.put(i, output);
-//                    separatedOutputs.add(output);
-//                }
-//
-////                ObjectDetector.ObjectDetectorOptions.Builder optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
-////                        .setScoreThreshold(10)
-////                        .setMaxResults(2);
-////                try {
-////                    mObjectDetector = ObjectDetector.createFromFileAndOptions(ActivityRecognition.this, modelName, optionsBuilder.build());
-////                }catch (Exception e){
-////                    Log.d(TAG,e.getMessage());
-////                }
-//
-//            }
-//        }).addOnFailureListener(new OnFailureListener() {
-//            @Override
-//            public void onFailure(@NonNull Exception e) {
-//
-//                Log.d(TAG, e.getMessage());
-//            }
-//        });
+    private ByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
+        FileInputStream inputStream = null;
+        FileChannel fileChannel = null;
+        ByteBuffer buffer;
+        try {
+            inputStream = new FileInputStream(assetManager.openFd(MODEL_PATH).getFileDescriptor());
+            fileChannel = inputStream.getChannel();
+            long startOffset = assetManager.openFd(MODEL_PATH).getStartOffset();
+            long declaredLength = assetManager.openFd(MODEL_PATH).getDeclaredLength();
+            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            if (fileChannel != null) {
+                fileChannel.close();
+            }
+        }
+        return buffer;
     }
 
     private boolean checkPermissions() {
@@ -147,37 +108,27 @@ public class ObjectClassification extends AppCompatActivity implements Detection
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if(requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (grantResults.length <= 0) Log.i(TAG, "User interaction was cancelled");
+            if (grantResults.length == 0) Log.i(TAG, "User interaction was cancelled");
             else if (grantResults[0] == PackageManager.PERMISSION_GRANTED) startCamera();
             else Log.i(TAG, "Permission Denied");
         }
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        if (!checkPermissions()) requestPermission();
-        else startCamera();
-    }
-
     private void startCamera() {
         final ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
-        cameraProviderFuture.addListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        bindUseCases(cameraProvider);
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    throw new RuntimeException(e);
+        cameraProviderFuture.addListener(() -> {
+            try {
+                ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    bindUseCases(cameraProvider);
                 }
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
-    private void takePhoto(ImageCapture imageCapture, Executor mCameraExecutor) {
+    private void CaptureImage(ImageCapture imageCapture) {
         ContentValues contentValues = new ContentValues();
         long currentTime = System.currentTimeMillis();
 
@@ -193,72 +144,152 @@ public class ObjectClassification extends AppCompatActivity implements Detection
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                 Uri outputUri = outputFileResults.getSavedUri();
-                MediaScannerConnection.scanFile(ObjectClassification.this,
-                        new String[]{outputUri.getPath()}, null,
-                        new MediaScannerConnection.OnScanCompletedListener() {
-                            @Override
-                            public void onScanCompleted(String path, Uri uri) {
-                                Toast toast = Toast.makeText(ObjectClassification.this, "Image Saved.", Toast.LENGTH_LONG);
-                                toast.show();
-                            }
-                        });
-                Log.d(TAG, "Camera Saved");
+                runOnUiThread(() -> imageResult.setImageURI(outputUri));
+                imageAnalysis();
+//                Uri outputUri = outputFileResults.getSavedUri();
+//                MediaScannerConnection.scanFile(ObjectClassification.this,
+//                        new String[]{outputUri.getPath()}, null,
+//                        new MediaScannerConnection.OnScanCompletedListener() {
+//                            @Override
+//                            public void onScanCompleted(String path, Uri uri) {
+//                                Toast toast = Toast.makeText(ObjectClassification.this, "Image Saved.", Toast.LENGTH_LONG);
+//                                toast.show();
+//                                result.setImageURI(file.toURI());
+//                            }
+//                        });
+//                Log.d(TAG, "Camera Saved");
             }
 
             @Override
             public void onError(@NonNull ImageCaptureException exception) {
-
+                Log.e("CameraX", "Error capturing image", exception);
             }
         }) ;
     }
 
-//    private void imageAnalysis(Executor mCameraExecutor) {
-//        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
-//                .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
-//
-//        imageAnalysis.setAnalyzer(mCameraExecutor, new ImageAnalysis.Analyzer() {
-//            @Override
-//            public void analyze(@NonNull ImageProxy image) {
-//                int rotationDegrees = image.getImageInfo().getRotationDegrees();
-//            }
-//        });
-//    }
+    private ByteBuffer preprocessImage(Bitmap bitmap) {
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true);
+        ByteBuffer inputBuffer = ByteBuffer.allocateDirect(INPUT_SIZE * INPUT_SIZE * 3 * 4);
+        inputBuffer.order(ByteOrder.nativeOrder());
+        inputBuffer.rewind();
+        resizedBitmap.copyPixelsToBuffer(inputBuffer);
+        return inputBuffer;
+    }
+
+    private Bitmap imageToBitmap(ImageProxy image) {
+        // Convert ImageProxy to Bitmap
+        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+    }
+
+    private void imageAnalysis() {
+        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+                .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+
+        imageAnalysis.setAnalyzer(mCameraExecutor, image -> {
+//            int rotationDegrees = image.getImageInfo().getRotationDegrees();
+            Bitmap bitmap = imageToBitmap(image);
+            float[] output = runInference(bitmap);
+            if (output != null) {
+                Recognition topPrediction = processOutput(output, loadLabels());
+                if (topPrediction != null) {
+                    String predictedClass = topPrediction.getLabel();
+                    float confidence = topPrediction.getConfidence();
+                    Log.d("Prediction", "Predicted Class: " + predictedClass + ", Confidence: " + confidence);
+                    updateUI(predictedClass, confidence);
+                } else {
+                    Log.d("Prediction", "No class found");
+                }
+            }
+        });
+    }
+
+    private void updateUI(String predictedClass, float confidence) {
+        result.setText(predictedClass);
+        confident.setText(String.valueOf(confidence));
+    }
+
+    private void initInterpreter() {
+        // Load the TFLite model
+        AssetManager assetManager = this.getAssets();
+        try{
+            Interpreter.Options options = new Interpreter.Options();
+            options.setUseNNAPI(true);
+            // Finish interpreter initialization
+            this.interpreterApi = new Interpreter(loadModelFile(assetManager), options);
+            Log.d("TAG", "Initialized TFLite interpreter.");
+        }catch (Exception e){
+            Log.d("","xee:"+e.getMessage());
+        }
+    }
+
+    private float[] runInference(Bitmap bitmap) {
+        if (interpreterApi == null) {
+            Log.e("TFLite", "Interpreter is not initialized.");
+            return null;
+        }
+        ByteBuffer inputBuffer = preprocessImage(bitmap);
+        float[][] outputScores = new float[1][NUM_CLASSES];
+        interpreterApi.run(inputBuffer, outputScores);
+        return outputScores[0];
+    }
+
+    // Load labels from text file
+    private List<String> loadLabels() {
+        List<String> labels = new ArrayList<>();
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(getAssets().open("activity_labels.txt")));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                labels.add(line);
+            }
+            reader.close();
+        } catch (IOException e) {
+            Log.e("TFLite", "Error reading labels", e);
+        }
+        return labels;
+    }
+
+    // Process output scores: find top k classes
+    private Recognition processOutput(float[] outputScores, List<String> labels) {
+        int topClassIndex = -1;
+        float topScore = -Float.MAX_VALUE;
+
+        for (int i = 0; i < outputScores.length; i++) {
+            if (outputScores[i] > topScore) {
+                topScore = outputScores[i];
+                topClassIndex = i;
+            }
+        }
+
+        if (topClassIndex != -1) {
+            String topClassLabel = labels.get(topClassIndex);
+            return new Recognition(String.valueOf(topClassIndex), topClassLabel, topScore);
+        } else {
+            return null; // No class found
+        }
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
     void bindUseCases(@NonNull ProcessCameraProvider cameraProvider) {
         CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build();
-        Executor mCameraExecutor = Executors.newSingleThreadExecutor();
 
         ///////////////////////////////////// Preview Use Case ////////////////////////////////////
         //build preview to use case
         Preview preview = new Preview.Builder().build();
 
         //get preview output surface
-        PreviewView mPreviewView = (PreviewView) findViewById(R.id.preview);
+        PreviewView mPreviewView = findViewById(R.id.preview);
         preview.setSurfaceProvider(mPreviewView.getSurfaceProvider());
 
         cameraProvider.unbindAll();
 
         //bind use cases to camera
-        ImageCapture imageCapture = new ImageCapture.Builder()
+        imageCapture = new ImageCapture.Builder()
                 .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
-        cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, preview, imageCapture);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////
-
-
-        ///////////////////////////////// Image Capture Use Case /////////////////////////////////
-
-        Button capture = (Button) findViewById(R.id.capture);
-        capture.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                takePhoto(imageCapture, mCameraExecutor);
-                detectorHelper = new ObjectDetectorHelper();
-                detectorHelper.setListener(ObjectClassification.this);
-                detectorHelper.imageAnalysis(mCameraExecutor);
-            }
-        });
+        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
 
         ///////////////////////////////////////////////////////////////////////////////////////////
     }
@@ -274,28 +305,36 @@ public class ObjectClassification extends AppCompatActivity implements Detection
             return insets;
         });
 
-        ImageView close = (ImageView)findViewById(R.id.closePreview);
-        initializeModel();
-        close.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                ObjectClassification.this.finish();
-            }
+        close = findViewById(R.id.closePreview);
+        result = findViewById(R.id.result);
+        imageResult = findViewById(R.id.imageResult);
+        confident = findViewById(R.id.confident);
+        capture = findViewById(R.id.capture);
+
+        initInterpreter();
+        close.setOnClickListener(view -> ObjectClassification.this.finish());
+        capture.setOnClickListener(v -> {
+            CaptureImage(imageCapture);
+//                detectorHelper = new ObjectDetectorHelper();
+//                detectorHelper.setListener(ObjectClassification.this);
+//                detectorHelper.imageAnalysis(mCameraExecutor);
         });
-
-
-        TextView result = (TextView) findViewById(R.id.result);
-        ImageView imageResult = (ImageView) findViewById(R.id.imageResult);
-        TextView confident = (TextView) findViewById(R.id.confident);
 
     }
 
     @Override
-    public void onDetectionResult(String result) {
-        // Handle detection result here
-        System.out.println("Received detection result: " + result);
-        // Update UI or perform other actions based on detection result
-        Toast toast = Toast.makeText(ObjectClassification.this, result, Toast.LENGTH_LONG);
-        toast.show();
+    protected void onStart() {
+        super.onStart();
+        if (!checkPermissions()) requestPermission();
+        else startCamera();
     }
+
+//    @Override
+//    public void onDetectionResult(String result) {
+//        // Handle detection result here
+//        System.out.println("Received detection result: " + result);
+//        // Update UI or perform other actions based on detection result
+//        Toast toast = Toast.makeText(ObjectClassification.this, result, Toast.LENGTH_LONG);
+//        toast.show();
+//    }
 }

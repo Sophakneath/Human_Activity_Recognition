@@ -6,6 +6,7 @@ import android.util.Size;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProcessor;
 import androidx.camera.core.ImageProxy;
 import java.util.concurrent.Executor;
 
@@ -38,13 +39,12 @@ public class ObjectDetectorHelper {
 
 
 
-                //coding here
-                // Preprocess the image and convert it into a TensorImage for detection
-//                ImageProcessor imageProcessor = new ImageProcessor.Builder()
-//                        .add(new Rot90Op(rotationDegrees / 90))
-//                        .build();
-
-                // Preprocess the image and convert it into a TensorImage for detection.
+////              coding here
+////              Preprocess the image and convert it into a TensorImage for detection
+//                ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+//                        .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+//
+////              Preprocess the image and convert it into a TensorImage for detection.
 //                TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image.toBitmap()));
 //
 //                List<Detection> results = mObjectDetector.detect(tensorImage);
