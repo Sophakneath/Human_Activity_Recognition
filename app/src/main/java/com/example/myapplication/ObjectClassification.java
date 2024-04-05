@@ -62,7 +62,7 @@ public class ObjectClassification extends AppCompatActivity {
     private static final String TAG = ActivityRecognition.class.getName();
 //    private ObjectDetectorHelper detectorHelper;
     Interpreter interpreterApi;
-    private static final String MODEL_PATH = "activity_recognition_model.tflite";
+    private static final String MODEL_PATH = "classification_model.tflite";
     ImageCapture imageCapture;
     Executor mCameraExecutor = Executors.newSingleThreadExecutor();
     TextView result, confident;
