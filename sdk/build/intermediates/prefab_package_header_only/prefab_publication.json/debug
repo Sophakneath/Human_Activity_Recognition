@@ -1,5 +1,5 @@
 {
-  "installationFolder": "/Users/phakneath/Desktop/Mobile_HW1/sdk/build/intermediates/prefab_package/debug/prefab",
+  "installationFolder": "/Users/lienghongky/Downloads/Mobile_tflite/sdk/build/intermediates/prefab_package/debug/prefab",
   "gradlePath": ":sdk",
   "packageInfo": {
     "packageName": "sdk",
@@ -8,7 +8,7 @@
     "modules": [
       {
         "moduleName": "opencv_jni_shared",
-        "moduleHeaders": "/Users/phakneath/Desktop/Mobile_HW1/sdk/native/jni/include",
+        "moduleHeaders": "/Users/lienghongky/Downloads/Mobile_tflite/sdk/native/jni/include",
         "moduleExportLibraries": [],
         "abis": []
       }
