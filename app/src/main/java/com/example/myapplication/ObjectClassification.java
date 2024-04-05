@@ -144,7 +144,7 @@ public class ObjectClassification extends AppCompatActivity {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                 Uri outputUri = outputFileResults.getSavedUri();
-                runOnUiThread(() -> imageResult.setImageURI(outputUri));
+//                runOnUiThread(() -> imageResult.setImageBitmap(outputUri));
                 imageAnalysis();
 //                Uri outputUri = outputFileResults.getSavedUri();
 //                MediaScannerConnection.scanFile(ObjectClassification.this,
@@ -189,8 +189,9 @@ public class ObjectClassification extends AppCompatActivity {
                 .setTargetResolution(new Size(1280, 720)).setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
 
         imageAnalysis.setAnalyzer(mCameraExecutor, image -> {
-//            int rotationDegrees = image.getImageInfo().getRotationDegrees();
             Bitmap bitmap = imageToBitmap(image);
+            runOnUiThread(() -> imageResult.setImageBitmap(bitmap));
+//            int rotationDegrees = image.getImageInfo().getRotationDegrees();
             float[] output = runInference(bitmap);
             if (output != null) {
                 Recognition topPrediction = processOutput(output, loadLabels());

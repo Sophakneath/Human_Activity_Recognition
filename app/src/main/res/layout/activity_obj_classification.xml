@@ -3,7 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     tools:context=".ObjectClassification"
     android:background="@color/white"
     android:id="@+id/main">
@@ -74,15 +73,17 @@
 
         <ImageView
             android:layout_width="match_parent"
-            android:layout_height="250dp"
-            android:id="@+id/imageResult" />
+            android:layout_height="200dp"
+            android:id="@+id/imageResult"
+            android:src="@drawable/no_pictures"/>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/this_object_is"
             android:gravity="center_horizontal"
-            android:textSize="16sp"/>
+            android:textSize="16sp"
+            android:layout_marginTop="10dp"/>
 
         <TextView
             android:layout_width="match_parent"
@@ -103,9 +104,10 @@
             android:id="@+id/confident" />
 
         <androidx.camera.view.PreviewView
-            android:layout_height="250dp"
+            android:layout_height="300dp"
             android:layout_width="match_parent"
-            android:id="@+id/preview" />
+            android:id="@+id/preview"
+            android:layout_marginTop="10dp"/>
 
     </LinearLayout>
 

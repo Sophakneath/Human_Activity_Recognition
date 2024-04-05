@@ -22,9 +22,12 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Description;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -40,17 +43,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ActivityRecognition extends AppCompatActivity implements SensorEventListener {
-//    private static final String TAG = ActivityRecognition.class.getName();
     SensorManager sensorManager;
     List<Sensor> sensorList;
     Sensor accSensor;
-//    SensorEventListener sensorEventListener;
-//    SensorDataCapture sensorDataCapture;
     private final String[] activities = {"Downstairs", "Jogging", "Sitting", "Standing", "Upstairs", "Walking"};
 
-    ImageView imageResult;
+    ImageView imageResult, close;
     TextView confident, resultView;
     LineChart lineChart;
+    Button start, end;
 
     Interpreter interpreterApi;
     private Sensor accelerometerSensor;
@@ -66,14 +67,8 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
     List<Entry> entriesX, entriesY, entriesZ;
     LineDataSet dataSetX, dataSetY, dataSetZ;
     LineData lineData;
-
-//    private List<List<Float>> xyz;
-//    int windowSize = 45;
     private float[][][][] inputData = new float[BATCH_SIZE][DATA_POINTS][AXES][CHANNELS];
-
-//    private int counter = 0;
-
-//    private static List<Float> ma;
+    private static final String MODEL_PATH = "activity_recognition_model.tflite";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,23 +81,65 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             return insets;
         });
 
-        sensorDataCapture(this);
-
         // Load the TFLite model
         AssetManager assetManager = this.getAssets();
-        try{
+        try {
             Interpreter.Options options = new Interpreter.Options();
             options.setUseNNAPI(true);
             Interpreter interpreter = new Interpreter(loadModelFile(assetManager), options);
             // Finish interpreter initialization
             this.interpreterApi = interpreter;
             Log.d("TAG", "Initialized TFLite interpreter.");
-        }catch (Exception e){
-            Log.d("","xee:"+e.getMessage());
+        } catch (Exception e) {
+            Log.d("", "xee:" + e.getMessage());
         }
 
-        ax = new ArrayList<>(); ay = new ArrayList<>(); az = new ArrayList<>();
-        ImageView close = (ImageView)findViewById(R.id.closePreview);
+        sensorDataCapture(this);
+
+        ax = new ArrayList<>();
+        ay = new ArrayList<>();
+        az = new ArrayList<>();
+        entriesX = new ArrayList<>();
+        entriesY = new ArrayList<>();
+        entriesZ = new ArrayList<>();
+        dataSetX = new LineDataSet(entriesX, "Acceleration X");
+        dataSetY = new LineDataSet(entriesY, "Acceleration Y");
+        dataSetZ = new LineDataSet(entriesZ, "Acceleration Z");
+
+        close = findViewById(R.id.closePreview);
+        start = findViewById(R.id.start);
+        end = findViewById(R.id.end);
+        imageResult = findViewById(R.id.imageResult);
+        confident = findViewById(R.id.confident);
+        lineChart = findViewById(R.id.graph);
+        resultView = findViewById(R.id.result);
+
+        lineData = new LineData();
+        lineChart.setData(lineData);
+
+        lineChart.getDescription().setEnabled(false);
+
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setTextColor(Color.WHITE);
+        xAxis.setDrawGridLines(true);
+        xAxis.setAvoidFirstLastClipping(true);
+        xAxis.setEnabled(true);
+
+        YAxis leftAxis = lineChart.getAxisLeft();
+        leftAxis.setTextColor(Color.WHITE);
+        leftAxis.setDrawGridLines(true);
+        leftAxis.setAxisMaximum(10f);
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setDrawGridLines(true);
+
+        YAxis rightAxis = lineChart.getAxisRight();
+        rightAxis.setEnabled(false);
+
+        lineChart.getAxisLeft().setDrawGridLines(true);
+        lineChart.getXAxis().setDrawGridLines(true);
+        lineChart.setDrawBorders(true);
+
+        feedMultiple();
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         sensorList = sensorManager.getSensorList(Sensor.TYPE_ACCELEROMETER);
@@ -115,12 +152,6 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             }
         });
 
-        Button start = (Button) findViewById(R.id.start);
-        Button end = (Button) findViewById(R.id.end);
-        imageResult = (ImageView) findViewById(R.id.imageResult);
-        confident = (TextView) findViewById(R.id.confident);
-        lineChart = (LineChart) findViewById(R.id.graph);
-        resultView = (TextView) findViewById(R.id.result);
         start.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -132,19 +163,94 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             @Override
             public void onClick(View view) {
                 stopCapturing();
+                if (thread != null) {
+                    thread.interrupt();
+                    lineChart.clearValues();
+                    resultView.setText(R.string.no_result_available);
+                    confident.setText(R.string.confident_0);
+                    imageResult.setImageResource(R.drawable.no_pictures);
+                }
             }
         });
     }
 
-    // File path to the TFLite model
-    private static final String MODEL_PATH = "activity_recognition_model.tflite";
+    private void addEntry(SensorEvent event) {
 
-    // Number of classes for human activity recognition
-    private static final int NUM_CLASSES = 6; // Example: Walking, Running, Sitting, Standing, etc.
-    private static final int NUM_DATA_POINTS = 90;
-    private static final int NUM_AXES = 3;
+        LineData data = lineChart.getData();
 
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+        if (data != null) {
+
+            ILineDataSet setX = data.getDataSetByIndex(0);
+            ILineDataSet setY = data.getDataSetByIndex(1);
+            ILineDataSet setZ = data.getDataSetByIndex(2);
+            // set.addEntry(...); // can be called as well
+
+            if (setX == null) {
+                setX = createSet(Color.RED, "Accelerometer X");
+                data.addDataSet(setX);
+                setY = createSet(Color.BLUE, "Accelerometer Y");
+                data.addDataSet(setY);
+                setZ = createSet(Color.GREEN, "Accelerometer Z");
+                data.addDataSet(setZ);
+            }
+
+            data.addEntry(new Entry(setX.getEntryCount(), event.values[0] + 5), 0);
+            data.addEntry(new Entry(setY.getEntryCount(), event.values[1] + 5), 1);
+            data.addEntry(new Entry(setZ.getEntryCount(), event.values[2] + 5), 2);
+            data.notifyDataChanged();
+
+            // let the chart know it's data has changed
+            lineChart.notifyDataSetChanged();
+
+            // limit the number of visible entries
+            lineChart.setVisibleXRangeMaximum(10);
+            lineChart.setVisibleYRange(-4,8, YAxis.AxisDependency.LEFT);
+
+            // move to the latest entry
+            lineChart.moveViewToX(data.getEntryCount());
+
+        }
+    }
+
+    private LineDataSet createSet(int color, String label) {
+        LineDataSet set = new LineDataSet(null, label);
+        set.setAxisDependency(YAxis.AxisDependency.LEFT);
+        set.setColor(color);
+        set.setLineWidth(3f);
+        set.setHighlightEnabled(false);
+        set.setDrawValues(true);
+        set.setDrawCircles(false);
+        set.setCubicIntensity(0.2f);
+        return set;
+    }
+
+    private Thread thread;
+    private boolean plotData = true;
+
+    private void feedMultiple() {
+
+        if (thread != null){
+            thread.interrupt();
+        }
+
+        thread = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                while (true){
+                    plotData = true;
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        thread.start();
+    }
 
     // Method to load the TFLite model file
     private ByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
@@ -172,24 +278,12 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
 
     }
 
-    private int inputImageWidth;
-    private int inputImageHeight;
-    private int modelInputSize;
-    private static final int FLOAT_TYPE_SIZE = 4;
-    private static final int PIXEL_SIZE = 3;
-
     float[][] predict(){
-        // Read input shape from model file
-        int[] inputShape = interpreterApi.getInputTensor(0).shape();
-//        inputImageWidth = inputShape[1];
-//        inputImageHeight = inputShape[2];
-//        modelInputSize = FLOAT_TYPE_SIZE * inputImageWidth * inputImageHeight * PIXEL_SIZE;
         long startTime = System.nanoTime();
         float[][] result = new float[BATCH_SIZE][activities.length];
         if (interpreterApi != null) {
             interpreterApi.run(inputData, result);
             // Do something with the classification result
-
             for (float i : result[0]) {
                 Log.d("TAG", "Classification Result: " + i);
             }
@@ -218,22 +312,6 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
 
     private void setUI(int index, float[][] result) {
         int resId = 0;
-        entriesX = new ArrayList<>();
-        entriesY = new ArrayList<>();
-        entriesZ = new ArrayList<>();
-        dataSetX = new LineDataSet(entriesX, "Acceleration X");
-        dataSetY = new LineDataSet(entriesY, "Acceleration Y");
-        dataSetZ = new LineDataSet(entriesZ, "Acceleration Z");
-
-        // Customize line data sets
-        dataSetX.setColor(Color.RED);
-        dataSetY.setColor(Color.GREEN);
-        dataSetZ.setColor(Color.BLUE);
-
-        // Add data sets to line data
-        lineData = new LineData(dataSetX, dataSetY, dataSetZ);
-        lineChart.setData(lineData);
-
         switch (index) {
             case 0: resId = R.drawable.downstair; break;
             case 1: resId = R.drawable.jogging; break;
@@ -245,11 +323,6 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
         resultView.setText(activities[index]);
         confident.setText(String.valueOf(round(result[0][index],3)));
         imageResult.setImageResource(resId);
-
-        lineChart = findViewById(R.id.graph);
-        Description desc = new Description();
-        desc.setText("Accelerometer XYZ");
-        lineChart.setDescription(desc);
     }
 
     private static float round(float d, int decimalPlace) {
@@ -264,6 +337,13 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        sensorManager.unregisterListener(ActivityRecognition.this);
+        thread.interrupt();
+    }
+
+    @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             ax.add(sensorEvent.values[0]);
@@ -271,17 +351,22 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             az.add(sensorEvent.values[2]);
 
             // Add new data points to data sets
-            entriesX.add(new Entry(entriesX.size(), sensorEvent.values[0]));
-            entriesY.add(new Entry(entriesY.size(), sensorEvent.values[1]));
-            entriesZ.add(new Entry(entriesZ.size(), sensorEvent.values[2]));
+//            entriesX.add(new Entry(entriesX.size(), sensorEvent.values[0]));
+//            entriesY.add(new Entry(entriesY.size(), sensorEvent.values[1]));
+//            entriesZ.add(new Entry(entriesZ.size(), sensorEvent.values[2]));
 
             // Notify chart that the data has changed
-            lineData.notifyDataChanged();
-            lineChart.notifyDataSetChanged();
+//            lineData.notifyDataChanged();
+//            lineChart.notifyDataSetChanged();
 
-            // Limit visible range of chart to 90 data points
-            lineChart.setVisibleXRangeMaximum(DATA_POINTS);
-            lineChart.moveViewToX(entriesX.size() - 1);
+//             Limit visible range of chart to 90 data points
+//            lineChart.setVisibleXRangeMaximum(DATA_POINTS);
+//            lineChart.moveViewToX(entriesX.size() - 1);
+
+            if(plotData){
+                addEntry(sensorEvent);
+                plotData = false;
+            }
 
             if (ax.size() == DATA_POINTS && ay.size() == DATA_POINTS && az.size() == DATA_POINTS) {
                 Log.d("TAG", "Counter first: " + ax.size());
@@ -296,39 +381,7 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
                 az = az.subList(az.size() - 46, az.size() - 1);
                 Log.d("TAG", "Counter Second: " + ax.size());
             }
-
-//            if (ax.size() == 270 && ay.size() == 270 && az.size() == 270) {
-//                ax = ax.subList(ax.size() - 46, ax.size() - 1);
-//                ay = ay.subList(ay.size() - 46, ay.size() - 1);
-//                az = az.subList(az.size() - 46, az.size() - 1);
-//                Log.d("TAG", "ax: " + ax.size());
-//                counter = 44;
-//            }
-//            counter++;
         }
-//        if (ax.size() == DATA_POINTS && ay.size() == DATA_POINTS && az.size() == DATA_POINTS) {
-//            Log.d("TAG", "Counter first: " + counter);
-//            counter = 0;
-//            for (int i = 0; i < DATA_POINTS; i++) {
-//                inputData[0][i][0][0] = ax.get(i);
-//                inputData[0][i][1][0] = ay.get(i);
-//                inputData[0][i][2][0] = az.get(i);
-//            }
-//            predict();
-//        }
-//        else {
-//            if (counter == DATA_POINTS) {
-//                Log.d("TAG", "Counter Second: " + counter);
-//                Log.d("TAG", "List size: " + ax.size());
-//                counter = 0;
-//                for (int i = ax.size() - DATA_POINTS - windowSize; i < ax.size() - windowSize; i++) {
-//                    inputData[0][i - windowSize][0][0] = ax.get(i);
-//                    inputData[0][i - windowSize][1][0] = ay.get(i);
-//                    inputData[0][i - windowSize][2][0] = az.get(i);
-//                }
-//                predict();
-//            }
-//        }
     }
 
     public void startCapturing() {
@@ -350,9 +403,5 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
         if (sensorManager != null) {
             accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         }
-    }
-
-    private void slidingWindow() {
-        int windowSize = 45;
     }
 }
