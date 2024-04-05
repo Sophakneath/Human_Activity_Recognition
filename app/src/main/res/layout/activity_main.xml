@@ -89,7 +89,7 @@
         android:layout_height="wrap_content"
         app:cardElevation="10dp"
         app:cardCornerRadius="20dp"
-        android:layout_margin="10dp"
+        android:layout_margin="4dp"
         app:cardBackgroundColor="@color/white"
         app:cardMaxElevation="12dp"
         app:cardPreventCornerOverlap="true"
@@ -134,7 +134,7 @@
 
             <Button
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="40dp"
                 android:text="@string/object_classification"
                 android:layout_gravity="bottom|center_horizontal"
                 android:layout_marginRight="40dp"

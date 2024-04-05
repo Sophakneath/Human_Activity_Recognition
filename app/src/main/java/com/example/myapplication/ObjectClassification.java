@@ -8,6 +8,8 @@ import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
@@ -42,8 +44,13 @@ import com.example.myapplication.utils.DetectionListener;
 import com.example.myapplication.utils.ObjectDetectorHelper;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.Interpreter;
+
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
@@ -60,20 +67,43 @@ import java.util.concurrent.Executors;
 public class ObjectClassification extends AppCompatActivity implements DetectionListener {
     private static final String TAG = ActivityRecognition.class.getName();
     private ObjectDetectorHelper detectorHelper;
+    // File path to the TFLite model
+    private static final String MODEL_PATH = "1.tflite";
+    private Interpreter interpreterApi;
 
-    private MappedByteBuffer loadModelFile(Activity activity, String model) throws IOException {
-        AssetManager am = activity.getAssets();
-
-        AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(model);
-        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
-        FileChannel fileChannel = inputStream.getChannel();
-        long startOffset = fileDescriptor.getStartOffset();
-
-        long declaredLength = fileDescriptor.getDeclaredLength();
-
-        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+    private ByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
+        FileInputStream inputStream = null;
+        FileChannel fileChannel = null;
+        ByteBuffer buffer = null;
+        try {
+            inputStream = new FileInputStream(assetManager.openFd(MODEL_PATH).getFileDescriptor());
+            fileChannel = inputStream.getChannel();
+            long startOffset = assetManager.openFd(MODEL_PATH).getStartOffset();
+            long declaredLength = assetManager.openFd(MODEL_PATH).getDeclaredLength();
+            buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            if (fileChannel != null) {
+                fileChannel.close();
+            }
+        }
+        return buffer;
     }
     private void initializeModel() {
+        // Load the TFLite model
+        AssetManager assetManager = this.getAssets();
+        try{
+            Interpreter.Options options = new Interpreter.Options();
+            options.setUseNNAPI(true);
+            Interpreter interpreter = new Interpreter(loadModelFile(assetManager), options);
+            // Finish interpreter initialization
+            this.interpreterApi = interpreter;
+            Log.d("TAG", "Initialized TFLite interpreter.");
+        }catch (Exception e){
+            Log.d("","xee:"+e.getMessage());
+        }
 //        TfLiteInitializationOptions options = TfLiteInitializationOptions.builder().setEnableGpuDelegateSupport(true).build();
 //        TfLiteVision.initialize(ObjectClassification.this, options).addOnSuccessListener(new OnSuccessListener<Void>() {
 //            @Override
@@ -130,6 +160,70 @@ public class ObjectClassification extends AppCompatActivity implements Detection
 //            }
 //        });
     }
+
+    private String predict(Bitmap bitmap){
+        String[] classLabels = new String[]{"Label 1", "Label 2", "Label 3"};
+        int NUM_CLASSES = 100;
+        float IMAGE_MEAN = 0.1f;
+        float IMAGE_STD = 1.0f;
+
+
+        int[] inputShape = interpreterApi.getInputTensor(0).shape();
+        int inputWidth = inputShape[1];
+        int inputHeight = inputShape[2];
+        int channels = inputShape[3];
+        DataType inputDataType = interpreterApi.getInputTensor(0).dataType();
+        int bytesPerChannel;
+        switch (inputDataType) {
+            case FLOAT32:
+                bytesPerChannel = Float.SIZE / Byte.SIZE;
+                break;
+            case INT8:
+                bytesPerChannel = 1;
+                break;
+            case UINT8:
+                bytesPerChannel = 1;
+                break;
+            default:
+                // Handle unsupported data types
+                throw new IllegalArgumentException("Unsupported data type: " + inputDataType);
+        }
+
+        // Preprocess the input Bitmap to match the input requirements of the model
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, inputWidth, inputHeight, true);
+        ByteBuffer inputBuffer = ByteBuffer.allocateDirect(inputWidth * inputHeight * channels * bytesPerChannel);
+        inputBuffer.order(ByteOrder.nativeOrder());
+        int[] intValues = new int[inputWidth * inputHeight];
+        resizedBitmap.getPixels(intValues, 0, resizedBitmap.getWidth(), 0, 0, resizedBitmap.getWidth(), resizedBitmap.getHeight());
+        int pixel = 0;
+        for (int i = 0; i < inputWidth; ++i) {
+            for (int j = 0; j < inputHeight; ++j) {
+                int val = intValues[pixel++];
+                inputBuffer.putFloat((((val >> 16) & 0xFF) - IMAGE_MEAN) / IMAGE_STD);
+                inputBuffer.putFloat((((val >> 8) & 0xFF) - IMAGE_MEAN) / IMAGE_STD);
+                inputBuffer.putFloat(((val & 0xFF) - IMAGE_MEAN) / IMAGE_STD);
+            }
+        }
+
+        // Run inference
+        float[][] outputScores = new float[1][NUM_CLASSES];
+        interpreterApi.run(inputBuffer, outputScores);
+
+        // Post-process the output if needed
+        // For example, finding the index with the highest score
+        int maxIndex = 0;
+        for (int i = 0; i < NUM_CLASSES; i++) {
+            Log.d("Result: ",outputScores[0][i]+"");
+            if (outputScores[0][i] > outputScores[0][maxIndex]) {
+                maxIndex = i;
+            }
+        }
+
+        // Return the prediction result
+        return classLabels[maxIndex];
+
+    }
+
 
     private boolean checkPermissions() {
         for(String permission: REQUIRED_PERMISSIONS){
@@ -253,6 +347,8 @@ public class ObjectClassification extends AppCompatActivity implements Detection
         capture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Bitmap mockBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.downstair);
+                predict(mockBitmap);
                 takePhoto(imageCapture, mCameraExecutor);
                 detectorHelper = new ObjectDetectorHelper();
                 detectorHelper.setListener(ObjectClassification.this);
