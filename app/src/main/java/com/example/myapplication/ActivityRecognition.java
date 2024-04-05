@@ -2,6 +2,8 @@ package com.example.myapplication;
 
 import android.content.Context;
 import android.content.res.AssetManager;
+import android.content.res.Resources;
+import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -20,6 +22,10 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.myapplication.utils.SensorDataCapture;
 import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.Description;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -29,18 +35,19 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ActivityRecognition extends AppCompatActivity implements SensorEventListener {
-    private static final String TAG = ActivityRecognition.class.getName();
+//    private static final String TAG = ActivityRecognition.class.getName();
     SensorManager sensorManager;
     List<Sensor> sensorList;
     Sensor accSensor;
-    SensorEventListener sensorEventListener;
-    SensorDataCapture sensorDataCapture;
-    private String[] activities = {"Downstairs", "Jogging", "Sitting", "Standing", "Upstairs", "Walking"};
+//    SensorEventListener sensorEventListener;
+//    SensorDataCapture sensorDataCapture;
+    private final String[] activities = {"Downstairs", "Jogging", "Sitting", "Standing", "Upstairs", "Walking"};
 
     ImageView imageResult;
     TextView confident, resultView;
@@ -57,13 +64,17 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
     private static List<Float> ay;
     private static List<Float> az;
 
-    private List<List<Float>> xyz;
-    int windowSize = 45;
+    List<Entry> entriesX, entriesY, entriesZ;
+    LineDataSet dataSetX, dataSetY, dataSetZ;
+    LineData lineData;
+
+//    private List<List<Float>> xyz;
+//    int windowSize = 45;
     private float[][][][] inputData = new float[BATCH_SIZE][DATA_POINTS][AXES][CHANNELS];
 
-    private int counter = 0;
+//    private int counter = 0;
 
-    private static List<Float> ma;
+//    private static List<Float> ma;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -167,11 +178,11 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
     float[][] predict(){
         // Read input shape from model file
         int[] inputShape = interpreterApi.getInputTensor(0).shape();
-        inputImageWidth = inputShape[1];
-        inputImageHeight = inputShape[2];
-        modelInputSize = FLOAT_TYPE_SIZE * inputImageWidth * inputImageHeight * PIXEL_SIZE;
+//        inputImageWidth = inputShape[1];
+//        inputImageHeight = inputShape[2];
+//        modelInputSize = FLOAT_TYPE_SIZE * inputImageWidth * inputImageHeight * PIXEL_SIZE;
         long startTime = System.nanoTime();
-        float[][] result = new float[1][6];
+        float[][] result = new float[BATCH_SIZE][activities.length];
         if (interpreterApi != null) {
             interpreterApi.run(inputData, result);
             // Do something with the classification result
@@ -181,8 +192,8 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             }
 
             int index = findPredictedActivity(result[0]);
-            Log.d("TAG", String.valueOf(result[0]));
-            resultView.setText(activities[index]);
+            Log.d("TAG", Arrays.toString(result[0]));
+            setUI(index, result);
         }
         long elapsedTime = (System.nanoTime() - startTime) / 1000000;
         Log.d("TAG", "Inference time = " + elapsedTime + "ms");
@@ -200,6 +211,42 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
         }
         // Return index of predicted activity
         return maxIndex;
+    }
+
+    private void setUI(int index, float[][] result) {
+        int resId = 0;
+        entriesX = new ArrayList<>();
+        entriesY = new ArrayList<>();
+        entriesZ = new ArrayList<>();
+        dataSetX = new LineDataSet(entriesX, "Acceleration X");
+        dataSetY = new LineDataSet(entriesY, "Acceleration Y");
+        dataSetZ = new LineDataSet(entriesZ, "Acceleration Z");
+
+        // Customize line data sets
+        dataSetX.setColor(Color.RED);
+        dataSetY.setColor(Color.GREEN);
+        dataSetZ.setColor(Color.BLUE);
+
+        // Add data sets to line data
+        lineData = new LineData(dataSetX, dataSetY, dataSetZ);
+        lineChart.setData(lineData);
+
+        switch (index) {
+            case 0: resId = R.drawable.downstair; break;
+            case 1: resId = R.drawable.jogging; break;
+            case 2: resId = R.drawable.sitting; break;
+            case 3: resId = R.drawable.standing; break;
+            case 4: resId = R.drawable.upstair; break;
+            case 5: resId = R.drawable.walking; break;
+        }
+        resultView.setText(activities[index]);
+        confident.setText(String.valueOf(round(result[0][index],3)));
+        imageResult.setImageResource(resId);
+
+        lineChart = findViewById(R.id.graph);
+        Description desc = new Description();
+        desc.setText("Accelerometer XYZ");
+        lineChart.setDescription(desc);
     }
 
     private static float round(float d, int decimalPlace) {
@@ -220,38 +267,65 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             ay.add(sensorEvent.values[1]);
             az.add(sensorEvent.values[2]);
 
-            if (ax.size() == 270 && ay.size() == 270 && az.size() == 270) {
+            // Add new data points to data sets
+            entriesX.add(new Entry(entriesX.size(), sensorEvent.values[0]));
+            entriesY.add(new Entry(entriesY.size(), sensorEvent.values[1]));
+            entriesZ.add(new Entry(entriesZ.size(), sensorEvent.values[2]));
+
+            // Notify chart that the data has changed
+            lineData.notifyDataChanged();
+            lineChart.notifyDataSetChanged();
+
+            // Limit visible range of chart to 90 data points
+            lineChart.setVisibleXRangeMaximum(DATA_POINTS);
+            lineChart.moveViewToX(entriesX.size() - 1);
+
+            if (ax.size() == DATA_POINTS && ay.size() == DATA_POINTS && az.size() == DATA_POINTS) {
+                Log.d("TAG", "Counter first: " + ax.size());
+                for (int i = 0; i < DATA_POINTS; i++) {
+                    inputData[0][i][0][0] = ax.get(i);
+                    inputData[0][i][1][0] = ay.get(i);
+                    inputData[0][i][2][0] = az.get(i);
+                }
+                predict();
                 ax = ax.subList(ax.size() - 46, ax.size() - 1);
                 ay = ay.subList(ay.size() - 46, ay.size() - 1);
                 az = az.subList(az.size() - 46, az.size() - 1);
-                Log.d("TAG", "ax: " + ax.size());
-                counter = 45;
+                Log.d("TAG", "Counter Second: " + ax.size());
             }
-            counter++;
+
+//            if (ax.size() == 270 && ay.size() == 270 && az.size() == 270) {
+//                ax = ax.subList(ax.size() - 46, ax.size() - 1);
+//                ay = ay.subList(ay.size() - 46, ay.size() - 1);
+//                az = az.subList(az.size() - 46, az.size() - 1);
+//                Log.d("TAG", "ax: " + ax.size());
+//                counter = 44;
+//            }
+//            counter++;
         }
-        if (ax.size() == DATA_POINTS && ay.size() == DATA_POINTS && az.size() == DATA_POINTS) {
-            Log.d("TAG", "Counter first: " + counter);
-            counter = 0;
-            for (int i = 0; i < DATA_POINTS; i++) {
-                inputData[0][i][0][0] = ax.get(i);
-                inputData[0][i][1][0] = ay.get(i);
-                inputData[0][i][2][0] = az.get(i);
-            }
-            predict();
-        }
-        else {
-            if (counter == DATA_POINTS) {
-                Log.d("TAG", "Counter Second: " + counter);
-                Log.d("TAG", "List size: " + ax.size());
-                counter = 0;
-                for (int i = ax.size() - DATA_POINTS - windowSize; i < ax.size() - windowSize; i++) {
-                    inputData[0][i - windowSize][0][0] = ax.get(i);
-                    inputData[0][i - windowSize][1][0] = ay.get(i);
-                    inputData[0][i - windowSize][2][0] = az.get(i);
-                }
-                predict();
-            }
-        }
+//        if (ax.size() == DATA_POINTS && ay.size() == DATA_POINTS && az.size() == DATA_POINTS) {
+//            Log.d("TAG", "Counter first: " + counter);
+//            counter = 0;
+//            for (int i = 0; i < DATA_POINTS; i++) {
+//                inputData[0][i][0][0] = ax.get(i);
+//                inputData[0][i][1][0] = ay.get(i);
+//                inputData[0][i][2][0] = az.get(i);
+//            }
+//            predict();
+//        }
+//        else {
+//            if (counter == DATA_POINTS) {
+//                Log.d("TAG", "Counter Second: " + counter);
+//                Log.d("TAG", "List size: " + ax.size());
+//                counter = 0;
+//                for (int i = ax.size() - DATA_POINTS - windowSize; i < ax.size() - windowSize; i++) {
+//                    inputData[0][i - windowSize][0][0] = ax.get(i);
+//                    inputData[0][i - windowSize][1][0] = ay.get(i);
+//                    inputData[0][i - windowSize][2][0] = az.get(i);
+//                }
+//                predict();
+//            }
+//        }
     }
 
     public void startCapturing() {

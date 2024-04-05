@@ -118,15 +118,15 @@
         <com.github.mikephil.charting.charts.LineChart
             android:id="@+id/graph"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="250dp"
             android:layout_marginTop="10dp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/accelerometer_xyz"
-            android:gravity="center_horizontal"
-            android:textSize="16sp"/>
+<!--        <TextView-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="@string/accelerometer_xyz"-->
+<!--            android:gravity="center_horizontal"-->
+<!--            android:textSize="16sp"/>-->
     </LinearLayout>
 
 </ScrollView>
