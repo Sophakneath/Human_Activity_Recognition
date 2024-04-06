@@ -5,9 +5,7 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.ImageDecoder;
 import android.graphics.Matrix;
-import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -22,16 +20,11 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
-import androidx.annotation.OptIn;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.AspectRatio;
 import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ExperimentalGetImage;
-import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
-import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -79,7 +72,6 @@ public class ObjectClassification extends AppCompatActivity {
     TextView result, confident;
     ImageView close, imageResult;
     Button capture;
-    ImageAnalysis imageAnalyzer;
 
     private ByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
         FileInputStream inputStream = null;
@@ -147,67 +139,42 @@ public class ObjectClassification extends AppCompatActivity {
         contentValues.put(MediaStore.Images.Media.DATE_TAKEN, currentTime);
         contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
 
-        imageAnalyzer.setAnalyzer(mCameraExecutor, image -> {
-//            bitmapBuffer[0] = Bitmap.createBitmap(
-//                    image.getWidth(),
-//                    image.getHeight(),
-//                    Bitmap.Config.ARGB_8888
-//            );
+        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(getContentResolver(),
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues).build();
 
-            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-            byte[] bytes = new byte[buffer.remaining()];
-            buffer.get(bytes);
+        imageCapture.takePicture(outputFileOptions, mCameraExecutor, new ImageCapture.OnImageSavedCallback() {
+            @Override
+            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+                Uri outputUri = outputFileResults.getSavedUri();
+                InputStream inputStream = null;
+                try {
+                    inputStream = getContentResolver().openInputStream(outputUri);
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                try {
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Matrix matrix = new Matrix();
+                matrix.postRotate(90);
+                Bitmap rotation = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                runOnUiThread(() -> {
+                    imageResult.setImageBitmap(rotation);
+                    imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                });
+                predict(rotation);
+            }
 
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-            Bitmap b = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-
-//            Matrix matrix = new Matrix();
-//            matrix.postRotate(90);
-//            Bitmap rotation = Bitmap.createBitmap(bitmapBuffer, 0, 0, bitmapBuffer.getWidth(), bitmapBuffer.getHeight(), matrix, true);
-            runOnUiThread(() -> {
-                imageResult.setImageBitmap(b);
-                imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            });
-            predict(b);
-        });
-
-//        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(getContentResolver(),
-//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues).build();
-//
-//        imageCapture.takePicture(outputFileOptions, mCameraExecutor, new ImageCapture.OnImageSavedCallback() {
-//            @Override
-//            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-//                Uri outputUri = outputFileResults.getSavedUri();
-//                InputStream inputStream = null;
-//                try {
-//                    inputStream = getContentResolver().openInputStream(outputUri);
-//                } catch (FileNotFoundException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-//                try {
-//                    if (inputStream != null) {
-//                        inputStream.close();
-//                    }
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//                Matrix matrix = new Matrix();
-//                matrix.postRotate(90);
-//                Bitmap rotation = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-//                runOnUiThread(() -> {
-//                    imageResult.setImageBitmap(rotation);
-//                    imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
-//                });
-//                predict(rotation);
-//            }
-//
-//            @Override
-//            public void onError(@NonNull ImageCaptureException exception) {
-//                Log.e("CameraX", "Error capturing image", exception);
-//            }
-//        }) ;
+            @Override
+            public void onError(@NonNull ImageCaptureException exception) {
+                Log.e("CameraX", "Error capturing image", exception);
+            }
+        }) ;
     }
 
     private ByteBuffer preprocessImage(Bitmap bitmap) {
@@ -238,13 +205,6 @@ public class ObjectClassification extends AppCompatActivity {
         Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, inputWidth, inputHeight, true);
         ByteBuffer inputBuffer = ByteBuffer.allocateDirect(inputWidth * inputHeight * channels * bytesPerChannel);
         inputBuffer.order(ByteOrder.nativeOrder());
-//        try {
-//            inputBuffer.rewind(); // Set the position to the start of the buffer
-//            resizedBitmap.copyPixelsToBuffer(inputBuffer);
-//        } catch (Exception e) {
-//            Log.d("Error bitmap", e.getMessage());
-//        }
-
         int[] intValues = new int[inputWidth * inputHeight];
         resizedBitmap.getPixels(intValues, 0, resizedBitmap.getWidth(), 0, 0, resizedBitmap.getWidth(), resizedBitmap.getHeight());
         int pixel = 0;
@@ -361,15 +321,9 @@ public class ObjectClassification extends AppCompatActivity {
         cameraProvider.unbindAll();
 
         //bind use cases to camera
-//        imageCapture = new ImageCapture.Builder()
-//                .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
-
-        imageAnalyzer = new ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                .build();
-
-        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer);
+        imageCapture = new ImageCapture.Builder()
+                .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
+        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
 
         ///////////////////////////////////////////////////////////////////////////////////////////
     }
