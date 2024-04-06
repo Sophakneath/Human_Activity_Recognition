@@ -30,6 +30,9 @@ tensorflowLiteSupport = "0.4.4"
 tensorflowLiteMetadata = "0.4.4"
 kotlinGradlePlugin = "2.0.0-Beta5"
 tensorflowAndroid = "1.13.1"
+googleObjectDetectionCustom = "17.0.1"
+googleObjectDetectionCustomVersion = "17.0.0"
+objectDetection = "17.0.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -65,6 +68,9 @@ tensorflow-lite-support = { group = "org.tensorflow", name = "tensorflow-lite-su
 tensorflow-lite-metadata = { group = "org.tensorflow", name = "tensorflow-lite-metadata", version.ref = "tensorflowLiteMetadata" }
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlinGradlePlugin" }
 tensorflow-android = { group = "org.tensorflow", name = "tensorflow-android", version.ref = "tensorflowAndroid" }
+object-detection-custom = { group = "com.google.mlkit", name = "object-detection-custom", version.ref = "googleObjectDetectionCustom" }
+mlkit-object-detection-custom = { group = "com.google.mlkit", name = "object-detection-custom", version.ref = "googleObjectDetectionCustomVersion" }
+obj-detection = { group = "com.google.mlkit", name = "object-detection", version.ref = "objectDetection" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.room.compiler)
     implementation(libs.guava)
     implementation(libs.tensorflow.lite)
+    implementation(libs.obj.detection)
 //    implementation(libs.tensorflow.lite)
 //    implementation(libs.tensorflow.lite.gpu)
 //    implementation(libs.tensorflow.lite.support)

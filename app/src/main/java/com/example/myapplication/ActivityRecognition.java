@@ -21,12 +21,14 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.AxisBase;
 import com.github.mikephil.charting.components.Description;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 import org.tensorflow.lite.Interpreter;
@@ -119,12 +121,33 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
         YAxis leftAxis = lineChart.getAxisLeft();
         leftAxis.setTextColor(Color.WHITE);
         leftAxis.setDrawGridLines(true);
-        leftAxis.setAxisMaximum(10f);
-        leftAxis.setAxisMinimum(0f);
+        leftAxis.setAxisMaximum(16f);
+        leftAxis.setAxisMinimum(2f);
         leftAxis.setDrawGridLines(true);
 
+        leftAxis.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getAxisLabel(float value, AxisBase axis) {
+                // Customize the Y axis value format here
+                return String.format("%.0f", value); // Format value to 2 decimal places
+            }
+        });
+        leftAxis.setTextColor(Color.BLACK);
+
         YAxis rightAxis = lineChart.getAxisRight();
-        rightAxis.setEnabled(false);
+        rightAxis.setDrawGridLines(true);
+        rightAxis.setAxisMaximum(16f);
+        rightAxis.setAxisMinimum(2f);
+        rightAxis.setEnabled(true);
+
+        rightAxis.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getAxisLabel(float value, AxisBase axis) {
+                // Customize the Y axis value format here
+                return String.format("%.0f", value); // Format value to 2 decimal places
+            }
+        });
+        rightAxis.setTextColor(Color.BLACK);
 
         lineChart.getAxisLeft().setDrawGridLines(true);
         lineChart.getXAxis().setDrawGridLines(true);
@@ -174,7 +197,6 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             ILineDataSet setX = data.getDataSetByIndex(0);
             ILineDataSet setY = data.getDataSetByIndex(1);
             ILineDataSet setZ = data.getDataSetByIndex(2);
-            // set.addEntry(...); // can be called as well
 
             if (setX == null) {
                 setX = createSet(Color.RED, "Accelerometer X");
@@ -195,11 +217,10 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
 
             // limit the number of visible entries
             lineChart.setVisibleXRangeMaximum(10);
-            lineChart.setVisibleYRange(-4,8, YAxis.AxisDependency.LEFT);
+            lineChart.setVisibleYRange(2,16, YAxis.AxisDependency.LEFT);
 
             // move to the latest entry
             lineChart.moveViewToX(data.getEntryCount());
-
         }
     }
 
