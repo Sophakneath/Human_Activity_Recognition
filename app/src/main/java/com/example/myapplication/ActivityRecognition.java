@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -82,17 +83,7 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
         });
 
         // Load the TFLite model
-        AssetManager assetManager = this.getAssets();
-        try {
-            Interpreter.Options options = new Interpreter.Options();
-            options.setUseNNAPI(true);
-            Interpreter interpreter = new Interpreter(loadModelFile(assetManager), options);
-            // Finish interpreter initialization
-            this.interpreterApi = interpreter;
-            Log.d("TAG", "Initialized TFLite interpreter.");
-        } catch (Exception e) {
-            Log.d("", "xee:" + e.getMessage());
-        }
+        initInterpreter();
 
         sensorDataCapture(this);
 
@@ -275,7 +266,17 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
     }
 
     private void initInterpreter() {
-
+        AssetManager assetManager = this.getAssets();
+        try {
+            Interpreter.Options options = new Interpreter.Options();
+            options.setUseNNAPI(true);
+            Interpreter interpreter = new Interpreter(loadModelFile(assetManager), options);
+            // Finish interpreter initialization
+            this.interpreterApi = interpreter;
+            Log.d("TAG", "Initialized TFLite interpreter.");
+        } catch (Exception e) {
+            Log.d("", "xee:" + e.getMessage());
+        }
     }
 
     float[][] predict(){
@@ -321,14 +322,13 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             case 5: resId = R.drawable.walking; break;
         }
         resultView.setText(activities[index]);
-        confident.setText(String.valueOf(round(result[0][index],3)));
+        confident.setText(formatFloat(result[0][index]));
         imageResult.setImageResource(resId);
     }
 
-    private static float round(float d, int decimalPlace) {
-        BigDecimal bd = new BigDecimal(Float.toString(d));
-        bd = bd.setScale(decimalPlace, BigDecimal.ROUND_HALF_UP);
-        return bd.floatValue();
+    private String formatFloat(float d) {
+        DecimalFormat df = new DecimalFormat("#.###");
+        return df.format(d);
     }
 
     @Override
@@ -349,19 +349,6 @@ public class ActivityRecognition extends AppCompatActivity implements SensorEven
             ax.add(sensorEvent.values[0]);
             ay.add(sensorEvent.values[1]);
             az.add(sensorEvent.values[2]);
-
-            // Add new data points to data sets
-//            entriesX.add(new Entry(entriesX.size(), sensorEvent.values[0]));
-//            entriesY.add(new Entry(entriesY.size(), sensorEvent.values[1]));
-//            entriesZ.add(new Entry(entriesZ.size(), sensorEvent.values[2]));
-
-            // Notify chart that the data has changed
-//            lineData.notifyDataChanged();
-//            lineChart.notifyDataSetChanged();
-
-//             Limit visible range of chart to 90 data points
-//            lineChart.setVisibleXRangeMaximum(DATA_POINTS);
-//            lineChart.moveViewToX(entriesX.size() - 1);
 
             if(plotData){
                 addEntry(sensorEvent);
