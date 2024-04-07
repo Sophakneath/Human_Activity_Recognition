@@ -23,8 +23,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
+import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -68,6 +70,7 @@ public class ObjectClassification extends AppCompatActivity {
     Interpreter interpreterApi;
     private static final String MODEL_PATH = "classification_model.tflite";
     ImageCapture imageCapture;
+    ImageAnalysis imageAnalysis;
     Executor mCameraExecutor = Executors.newSingleThreadExecutor();
     TextView result, confident;
     ImageView close, imageResult;
@@ -131,35 +134,55 @@ public class ObjectClassification extends AppCompatActivity {
     }
 
     private void CaptureImage(ImageCapture imageCapture) {
-        ContentValues contentValues = new ContentValues();
-        long currentTime = System.currentTimeMillis();
+//        ContentValues contentValues = new ContentValues();
+//        long currentTime = System.currentTimeMillis();
+//
+//        contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+//        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()));
+//        contentValues.put(MediaStore.Images.Media.DATE_TAKEN, currentTime);
+//        contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+//
+//        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(getContentResolver(),
+//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues).build();
+//
+//        imageCapture.takePicture(outputFileOptions, mCameraExecutor, new ImageCapture.OnImageSavedCallback() {
+//            @Override
+//            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+//                Uri outputUri = outputFileResults.getSavedUri();
+//                InputStream inputStream = null;
+//                try {
+//                    inputStream = getContentResolver().openInputStream(outputUri);
+//                } catch (FileNotFoundException e) {
+//                    throw new RuntimeException(e);
+//                }
+//                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+//                try {
+//                    if (inputStream != null) {
+//                        inputStream.close();
+//                    }
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//                Matrix matrix = new Matrix();
+//                matrix.postRotate(90);
+//                Bitmap rotation = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+//                runOnUiThread(() -> {
+//                    imageResult.setImageBitmap(rotation);
+//                    imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
+//                });
+//                predict(rotation);
+//            }
+//
+//            @Override
+//            public void onError(@NonNull ImageCaptureException exception) {
+//                Log.e("CameraX", "Error capturing image", exception);
+//            }
+//        }) ;
 
-        contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()));
-        contentValues.put(MediaStore.Images.Media.DATE_TAKEN, currentTime);
-        contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
-
-        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(getContentResolver(),
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues).build();
-
-        imageCapture.takePicture(outputFileOptions, mCameraExecutor, new ImageCapture.OnImageSavedCallback() {
+        imageAnalysis.setAnalyzer(mCameraExecutor, new ImageAnalysis.Analyzer() {
             @Override
-            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                Uri outputUri = outputFileResults.getSavedUri();
-                InputStream inputStream = null;
-                try {
-                    inputStream = getContentResolver().openInputStream(outputUri);
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
-                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                try {
-                    if (inputStream != null) {
-                        inputStream.close();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            public void analyze(@NonNull ImageProxy image) {
+                Bitmap bitmap = image.toBitmap();
                 Matrix matrix = new Matrix();
                 matrix.postRotate(90);
                 Bitmap rotation = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
@@ -168,13 +191,9 @@ public class ObjectClassification extends AppCompatActivity {
                     imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 });
                 predict(rotation);
+                image.close();
             }
-
-            @Override
-            public void onError(@NonNull ImageCaptureException exception) {
-                Log.e("CameraX", "Error capturing image", exception);
-            }
-        }) ;
+        });
     }
 
     private ByteBuffer preprocessImage(Bitmap bitmap) {
@@ -321,9 +340,11 @@ public class ObjectClassification extends AppCompatActivity {
         cameraProvider.unbindAll();
 
         //bind use cases to camera
-        imageCapture = new ImageCapture.Builder()
-                .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
-        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture);
+//        imageCapture = new ImageCapture.Builder()
+//                .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
+
+        imageAnalysis = new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
+        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis);
 
         ///////////////////////////////////////////////////////////////////////////////////////////
     }
