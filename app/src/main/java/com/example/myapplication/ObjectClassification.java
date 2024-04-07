@@ -291,7 +291,7 @@ public class ObjectClassification extends AppCompatActivity {
         int topClassIndex = -1;
         float topScore = -Float.MAX_VALUE;
 
-        for (int i = 0; i < outputScores.length; i++) {
+        for (int i = 0; i < outputScores[0].length; i++) {
             if (outputScores[0][i] > topScore) {
                 topScore = outputScores[0][i];
                 topClassIndex = i;
