@@ -134,55 +134,27 @@ public class ObjectClassification extends AppCompatActivity {
     }
 
     private void CaptureImage(ImageCapture imageCapture) {
-//        ContentValues contentValues = new ContentValues();
-//        long currentTime = System.currentTimeMillis();
-//
-//        contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-//        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()));
-//        contentValues.put(MediaStore.Images.Media.DATE_TAKEN, currentTime);
-//        contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
-//
-//        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(getContentResolver(),
-//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues).build();
-//
-//        imageCapture.takePicture(outputFileOptions, mCameraExecutor, new ImageCapture.OnImageSavedCallback() {
-//            @Override
-//            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-//                Uri outputUri = outputFileResults.getSavedUri();
-//                InputStream inputStream = null;
-//                try {
-//                    inputStream = getContentResolver().openInputStream(outputUri);
-//                } catch (FileNotFoundException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-//                try {
-//                    if (inputStream != null) {
-//                        inputStream.close();
-//                    }
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//                Matrix matrix = new Matrix();
-//                matrix.postRotate(90);
-//                Bitmap rotation = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-//                runOnUiThread(() -> {
-//                    imageResult.setImageBitmap(rotation);
-//                    imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
-//                });
-//                predict(rotation);
-//            }
-//
-//            @Override
-//            public void onError(@NonNull ImageCaptureException exception) {
-//                Log.e("CameraX", "Error capturing image", exception);
-//            }
-//        }) ;
-
         imageAnalysis.setAnalyzer(mCameraExecutor, new ImageAnalysis.Analyzer() {
             @Override
             public void analyze(@NonNull ImageProxy image) {
                 Bitmap bitmap = image.toBitmap();
+
+//              Preprocess the input Bitmap to match the input requirements of the model
+                ByteBuffer inputBuffer = preprocessImage(bitmap);
+
+                List<String> classLabels = loadLabels();
+                int NUM_CLASSES = classLabels.size();
+
+                // Run inference
+                if (interpreterApi == null) {
+                    Log.e("TFLite", "Interpreter is not initialized.");
+                }
+
+                float[][] outputScores = new float[1][NUM_CLASSES];
+                interpreterApi.run(inputBuffer, outputScores);
+
+                image.close();
+
                 Matrix matrix = new Matrix();
                 matrix.postRotate(90);
                 Bitmap rotation = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
@@ -190,8 +162,17 @@ public class ObjectClassification extends AppCompatActivity {
                     imageResult.setImageBitmap(rotation);
                     imageResult.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 });
-                predict(rotation);
-                image.close();
+
+                // Post-process the output
+                Recognition topPrediction = processOutput(outputScores, loadLabels());
+                if (topPrediction != null) {
+                    String predictedClass = topPrediction.getLabel();
+                    float confidence = topPrediction.getConfidence();
+                    Log.d("Prediction", "Predicted Class: " + predictedClass + ", Confidence: " + confidence);
+                    updateUI(predictedClass, formatFloat(confidence));
+                } else {
+                    Log.d("Prediction", "No class found");
+                }
             }
         });
     }
@@ -203,23 +184,7 @@ public class ObjectClassification extends AppCompatActivity {
         int inputWidth = inputShape[1];
         int inputHeight = inputShape[2];
         int channels = inputShape[3];
-        DataType inputDataType = interpreterApi.getInputTensor(0).dataType();
-        int bytesPerChannel;
-
-        switch (inputDataType) {
-            case FLOAT32:
-                bytesPerChannel = Float.SIZE / Byte.SIZE;
-                break;
-            case INT8:
-                bytesPerChannel = 1;
-                break;
-            case UINT8:
-                bytesPerChannel = 1;
-                break;
-            default:
-                // Handle unsupported data types
-                throw new IllegalArgumentException("Unsupported data type: " + inputDataType);
-        }
+        int bytesPerChannel = Float.SIZE / Byte.SIZE;
 
         Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, inputWidth, inputHeight, true);
         ByteBuffer inputBuffer = ByteBuffer.allocateDirect(inputWidth * inputHeight * channels * bytesPerChannel);
@@ -242,32 +207,6 @@ public class ObjectClassification extends AppCompatActivity {
     private String formatFloat(float d) {
         DecimalFormat df = new DecimalFormat("#.###");
         return df.format(d);
-    }
-
-    private void predict(Bitmap bitmap){
-        List<String> classLabels = loadLabels();
-        int NUM_CLASSES = classLabels.size();
-
-//         Preprocess the input Bitmap to match the input requirements of the model
-        ByteBuffer inputBuffer = preprocessImage(bitmap);
-
-        // Run inference
-        if (interpreterApi == null) {
-            Log.e("TFLite", "Interpreter is not initialized.");
-        }
-        float[][] outputScores = new float[1][NUM_CLASSES];
-        interpreterApi.run(inputBuffer, outputScores);
-
-        // Post-process the output
-        Recognition topPrediction = processOutput(outputScores, loadLabels());
-        if (topPrediction != null) {
-            String predictedClass = topPrediction.getLabel();
-            float confidence = topPrediction.getConfidence();
-            Log.d("Prediction", "Predicted Class: " + predictedClass + ", Confidence: " + confidence);
-            updateUI(predictedClass, formatFloat(confidence));
-        } else {
-            Log.d("Prediction", "No class found");
-        }
     }
 
     private void updateUI(String predictedClass, String confidence) {
@@ -338,10 +277,6 @@ public class ObjectClassification extends AppCompatActivity {
         preview.setSurfaceProvider(mPreviewView.getSurfaceProvider());
 
         cameraProvider.unbindAll();
-
-        //bind use cases to camera
-//        imageCapture = new ImageCapture.Builder()
-//                .setTargetRotation(Objects.requireNonNull(this.getDisplay()).getRotation()).build();
 
         imageAnalysis = new ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
         cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis);
